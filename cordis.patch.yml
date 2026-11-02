@@ -1,0 +1,13 @@
+# dsh-memory bundle patch —— 把记忆系统插入 profile 的层栈。
+#
+# 只有一个 entry：Host 侧插件同时提供
+#   1. 4 个模型可见工具（对话通道）
+#   2. /api/memory/* 路由（面板通道，动态挂 webServer）
+#   3. 浏览器 bundle（由 package.json 的 dsh.client 声明）
+#
+# 没有 config：数据目录默认 $DSH_HOME/memory，保留期等设置存在库里的 memory_settings，
+# 改 yml 不会生效（这是刻意的：设置只有一个真相，就是库）。
+- insert:
+    - id: dsh-memory
+      # name 必须是可被 profile 根目录解析的包说明符，即 package.json 的 name。
+      name: '@clinexin/dsh-memory'

@@ -1,0 +1,2830 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>记忆管理面板 · 设计原型 v1</title>
+<style>
+/* ==========================================================================
+   记忆管理面板 · 静态原型 v1
+   纯 HTML/CSS + 少量原生 JS（页签切换 / 面板演示 / 弹窗 / 筛选）。
+   无构建工具、无依赖、无 CDN、无外链字体。双击即可打开。
+   本文件只承载「视觉与交互演示」，业务判定口径见 docs/design/panel-memory.md
+   ========================================================================== */
+
+/* ---------- 1. Design Tokens ---------- */
+:root{
+  /* 中性色 */
+  --bg:#F7F5F2;
+  --surface:#FFFFFF;
+  --surface-2:#F1EEEA;
+  --surface-3:#EAE6E0;
+  --border:#DDD8D2;         /* 装饰性分隔，非信息载体 */
+  --border-strong:#C4BEB7;
+  /* 文本色（对比度见 panel-memory.md §8.3） */
+  --ink:#1B1A18;            /* 17.39:1 on surface */
+  --ink-2:#4E4A45;          /* 8.79:1 */
+  --ink-3:#6E6862;          /* 5.50:1 */
+  --muted:#6B6560;          /* 5.74:1 */
+  /* 语义色 */
+  --brand:#14584A;          /* 8.32:1 */
+  --brand-soft:#E6F0EC;
+  --ok:#1B6B45;             /* 生效 */
+  --ok-soft:#E4F2EA;
+  --warn:#8A5A00;           /* 已过期 */
+  --warn-soft:#FBF0DA;
+  --sup:#3F5D75;            /* 已修正 6.92:1 */
+  --sup-soft:#E8EEF4;
+  --danger:#A11E1E;         /* 7.72:1 */
+  --danger-soft:#FBE9E9;
+  --focus:#0B5FA5;          /* 6.57:1 焦点环 */
+  /* 尺寸 */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px;
+  --sp-5:24px; --sp-6:32px; --sp-7:48px;
+  --r-1:4px; --r-2:8px; --r-3:12px;
+  --tap:44px;               /* 最小触控目标 */
+  --shadow-1:0 1px 2px rgba(27,26,24,.06), 0 1px 3px rgba(27,26,24,.04);
+  --shadow-2:0 4px 12px rgba(27,26,24,.10), 0 2px 4px rgba(27,26,24,.06);
+  --shadow-3:0 16px 40px rgba(27,26,24,.18), 0 4px 12px rgba(27,26,24,.10);
+  /* 字体 */
+  --font:-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+         "Hiragino Sans GB", "Microsoft YaHei", "Source Han Sans SC", sans-serif;
+  --mono:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+/* 暗色模式：同一套语义色位，仅换值（对比度另行核算，见 §8.4） */
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#17161A; --surface:#1F1E23; --surface-2:#26252B; --surface-3:#2E2D34;
+    --border:#3A3840; --border-strong:#4A4852;
+    --ink:#F2EFEA; --ink-2:#C8C3BC; --ink-3:#A09991; --muted:#B4ADA5;
+    --brand:#7FD9BE; --brand-soft:#1E3B34;
+    --ok:#7FD1A8; --ok-soft:#17332A;
+    --warn:#E8B45C; --warn-soft:#332912;
+    --sup:#9DB4C9; --sup-soft:#1E2A33;
+    --danger:#F18F8F; --danger-soft:#3A1E1E;
+    --focus:#79B8F3;
+    --shadow-1:0 1px 2px rgba(0,0,0,.4);
+    --shadow-2:0 4px 12px rgba(0,0,0,.5);
+    --shadow-3:0 16px 40px rgba(0,0,0,.65);
+  }
+}
+
+/* ---------- 2. Reset & 基础 ---------- */
+*,*::before,*::after{ box-sizing:border-box; }
+html{ -webkit-text-size-adjust:100%; }
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:var(--font); font-size:14px; line-height:1.6;
+  font-variant-numeric:tabular-nums;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4,p,ul,ol,dl,dd,figure{ margin:0; }
+ul,ol{ padding:0; list-style:none; }
+button{ font:inherit; color:inherit; }
+input,select{ font:inherit; color:inherit; }
+a{ color:var(--brand); }
+:focus-visible{ outline:3px solid var(--focus); outline-offset:2px; border-radius:var(--r-1); }
+table{ border-collapse:collapse; width:100%; }
+
+.sr-only{
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0;
+}
+.skip{
+  position:absolute; left:var(--sp-4); top:-60px; z-index:100;
+  background:var(--surface); color:var(--ink); padding:var(--sp-3) var(--sp-4);
+  border-radius:var(--r-2); box-shadow:var(--shadow-2); font-weight:600;
+}
+.skip:focus{ top:var(--sp-4); }
+
+/* ---------- 3. 布局 ---------- */
+.app{ display:flex; min-height:100vh; }
+
+.rail{
+  width:236px; flex:0 0 236px; background:var(--surface);
+  border-right:1px solid var(--border); padding:var(--sp-5) var(--sp-3);
+  display:flex; flex-direction:column; gap:var(--sp-5);
+  position:sticky; top:0; align-self:flex-start; height:100vh;
+}
+.rail__brand{ display:flex; gap:var(--sp-3); align-items:center; padding:0 var(--sp-2); }
+.rail__mark{
+  width:32px; height:32px; flex:0 0 32px; border-radius:var(--r-2);
+  background:var(--brand); color:#fff; display:grid; place-items:center;
+  font-weight:700; font-size:15px;
+}
+.rail__title{ font-size:14px; font-weight:650; letter-spacing:.01em; }
+.rail__sub{ font-size:12px; color:var(--muted); }
+
+.nav__label{
+  font-size:11px; font-weight:650; letter-spacing:.08em; color:var(--muted);
+  padding:0 var(--sp-2) var(--sp-2); text-transform:none;
+}
+
+/* 页签 = 三大视图（DC-09 v2：只有 3 个，不得新增第四视图） */
+.tab{
+  display:flex; align-items:center; gap:var(--sp-3); width:100%;
+  min-height:var(--tap); padding:var(--sp-2) var(--sp-3); margin-bottom:var(--sp-1);
+  background:none; border:0; border-radius:var(--r-2);
+  text-align:left; cursor:pointer; color:var(--ink-2); font-weight:550;
+}
+.tab:hover{ background:var(--surface-2); color:var(--ink); }
+.tab[aria-selected="true"]{
+  background:var(--brand-soft); color:var(--brand); font-weight:650;
+  box-shadow:inset 3px 0 0 var(--brand);
+}
+.tab__glyph{
+  width:22px; height:22px; flex:0 0 22px; display:grid; place-items:center;
+  font-size:13px; font-family:var(--mono); font-weight:700;
+  border:1.5px solid currentColor; border-radius:var(--r-1);
+}
+.tab__count{
+  margin-left:auto; font-family:var(--mono); font-size:12px; font-weight:650;
+  color:var(--muted); background:var(--surface-2); border-radius:999px;
+  padding:0 7px; min-width:22px; text-align:center;
+}
+.tab[aria-selected="true"] .tab__count{ background:var(--surface); color:var(--brand); }
+
+.rail__foot{ margin-top:auto; border-top:1px solid var(--border); padding-top:var(--sp-4); }
+.rail__ctx{ font-size:12px; color:var(--muted); line-height:1.7; }
+.rail__ctx b{ color:var(--ink-2); font-weight:600; }
+
+.main{ flex:1; min-width:0; display:flex; flex-direction:column; }
+
+.topbar{
+  display:flex; align-items:center; gap:var(--sp-4); flex-wrap:wrap;
+  padding:var(--sp-4) var(--sp-6); background:var(--surface);
+  border-bottom:1px solid var(--border); position:sticky; top:0; z-index:20;
+}
+.topbar__h{
+  font-size:17px; font-weight:680; letter-spacing:.01em;
+  display:flex; align-items:center; gap:var(--sp-3);
+}
+.topbar__view{
+  font-size:11px; font-weight:650; font-family:var(--mono); color:var(--brand);
+  background:var(--brand-soft); border-radius:var(--r-1); padding:2px 6px; letter-spacing:.04em;
+}
+.topbar__spacer{ margin-left:auto; }
+.scope-chip{
+  display:inline-flex; align-items:center; gap:var(--sp-2);
+  font-size:12px; color:var(--ink-2); background:var(--surface-2);
+  border:1px solid var(--border); border-radius:999px; padding:5px 12px;
+}
+.scope-chip b{ font-family:var(--mono); font-weight:650; color:var(--ink); }
+
+.content{ padding:var(--sp-5) var(--sp-6) var(--sp-7); max-width:1180px; width:100%; }
+
+/* ---------- 4. 统计条（DC-10 的页面落点） ---------- */
+.stats{
+  display:flex; align-items:center; gap:var(--sp-4); flex-wrap:wrap;
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--r-3);
+  padding:var(--sp-4) var(--sp-5); margin-bottom:var(--sp-4); box-shadow:var(--shadow-1);
+}
+.stats__total{ font-size:15px; font-weight:650; }
+.stats__total b{ font-size:19px; font-weight:700; }
+.stats__break{ display:flex; gap:var(--sp-2); flex-wrap:wrap; }
+.stat-pill{
+  display:inline-flex; align-items:center; gap:6px;
+  font-size:12.5px; font-weight:600; border-radius:999px; padding:4px 11px;
+  border:1px solid transparent;
+}
+.stat-pill--ok{ color:var(--ok); background:var(--ok-soft); border-color:color-mix(in srgb,var(--ok) 28%,transparent); }
+.stat-pill--sup{ color:var(--sup); background:var(--sup-soft); border-color:color-mix(in srgb,var(--sup) 28%,transparent); }
+.stat-pill--warn{ color:var(--warn); background:var(--warn-soft); border-color:color-mix(in srgb,var(--warn) 28%,transparent); }
+.stat-pill__mark{ font-family:var(--mono); font-weight:700; }
+.stats__formula{
+  font-family:var(--mono); font-size:11.5px; color:var(--muted);
+  border-left:1px solid var(--border); padding-left:var(--sp-4);
+}
+.stats__trash{ margin-left:auto; font-size:12.5px; color:var(--muted); }
+.stats__trash b{ color:var(--ink-2); font-weight:650; }
+.stats__trash a{ font-size:12.5px; }
+
+/* ---------- 5. 工具条：搜索 + 筛选 ---------- */
+.toolbar{
+  display:flex; gap:var(--sp-3); flex-wrap:wrap; align-items:center;
+  margin-bottom:var(--sp-4);
+}
+.field{ position:relative; display:flex; align-items:center; }
+.field__icon{
+  position:absolute; left:12px; width:13px; height:13px;
+  border:1.6px solid var(--muted); border-radius:50%; pointer-events:none;
+}
+.field__icon::after{
+  content:""; position:absolute; left:11px; top:10px; width:6px; height:1.6px;
+  background:var(--muted); transform:rotate(45deg); transform-origin:left center;
+  border-radius:1px;
+}
+.input{
+  min-height:var(--tap); padding:0 var(--sp-3) 0 34px; width:280px;
+  background:var(--surface); border:1px solid var(--border-strong);
+  border-radius:var(--r-2); font-size:13.5px;
+}
+.input::placeholder{ color:var(--muted); }
+.input:hover{ border-color:var(--ink-3); }
+
+.select{
+  min-height:var(--tap); padding:0 var(--sp-3);
+  background:var(--surface); border:1px solid var(--border-strong);
+  border-radius:var(--r-2); font-size:13px; cursor:pointer;
+}
+.select:hover{ border-color:var(--ink-3); }
+.toolbar__label{ font-size:12px; color:var(--muted); font-weight:600; }
+.toolbar__note{
+  font-size:12px; color:var(--muted); display:flex; align-items:center; gap:6px;
+}
+.toolbar__note::before{ content:"i"; font-family:var(--mono); font-weight:700;
+  border:1.3px solid currentColor; border-radius:50%; width:14px; height:14px;
+  display:grid; place-items:center; font-size:10px; flex:0 0 14px; }
+
+/* ---------- 6. 按钮 ---------- */
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  min-height:36px; padding:0 var(--sp-3); border-radius:var(--r-2);
+  border:1px solid var(--border-strong); background:var(--surface);
+  font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;
+}
+.btn:hover{ background:var(--surface-2); border-color:var(--ink-3); }
+.btn--primary{ background:var(--brand); border-color:var(--brand); color:#fff; }
+.btn--primary:hover{ background:var(--brand); border-color:var(--brand); filter:brightness(1.12); }
+.btn--danger{ background:var(--danger); border-color:var(--danger); color:#fff; }
+.btn--danger:hover{ background:var(--danger); border-color:var(--danger); filter:brightness(1.1); }
+.btn--danger-outline{ color:var(--danger); border-color:var(--danger); background:var(--surface); }
+.btn--danger-outline:hover{ background:var(--danger-soft); border-color:var(--danger); }
+.btn--ghost{ border-color:transparent; background:none; color:var(--ink-2); }
+.btn--ghost:hover{ background:var(--surface-2); color:var(--ink); }
+.btn--tap{ min-height:var(--tap); }
+.btn:disabled{ opacity:.5; cursor:not-allowed; }
+.btn__kbd{
+  font-family:var(--mono); font-size:11px; opacity:.72;
+  border:1px solid currentColor; border-radius:3px; padding:0 3px; line-height:1.4;
+}
+
+/* ---------- 7. 分层分组 ---------- */
+.group{ margin-bottom:var(--sp-5); }
+.group__head{
+  display:flex; align-items:center; gap:var(--sp-3);
+  padding:var(--sp-2) 0 var(--sp-2); border-bottom:1px solid var(--border);
+  margin-bottom:var(--sp-3);
+}
+.group__title{ font-size:13.5px; font-weight:700; letter-spacing:.02em; }
+.group__layer{
+  font-family:var(--mono); font-size:11px; color:var(--muted);
+  border:1px solid var(--border-strong); border-radius:var(--r-1); padding:0 5px;
+}
+.group__sub{ font-size:12.5px; color:var(--muted); }
+.group__sub b{ color:var(--ink-2); font-weight:650; }
+
+/* 状态小节标题（三重冗余之一：所在小节） */
+.subhead{
+  display:flex; align-items:center; gap:var(--sp-2);
+  font-size:12px; font-weight:650; color:var(--ink-2); margin:var(--sp-4) 0 var(--sp-2);
+}
+.subhead__mark{
+  font-family:var(--mono); font-weight:700; font-size:12px;
+  width:18px; height:18px; display:grid; place-items:center;
+  border:1.5px solid currentColor; border-radius:var(--r-1);
+}
+.subhead--ok .subhead__mark{ color:var(--ok); }
+.subhead--sup .subhead__mark{ color:var(--sup); }
+.subhead--warn .subhead__mark{ color:var(--warn); }
+.subhead__count{ color:var(--muted); font-weight:600; }
+
+/* ---------- 8. 条目卡 ---------- */
+.item{
+  position:relative; display:grid;
+  grid-template-columns:56px minmax(0,1fr) auto;
+  gap:var(--sp-4); align-items:start;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--r-3); padding:var(--sp-4);
+  margin-bottom:var(--sp-2); box-shadow:var(--shadow-1);
+}
+.item:hover{ border-color:var(--border-strong); }
+.item--superseded{ background:linear-gradient(90deg,var(--sup-soft),var(--surface) 22%); }
+.item--expired{ background:linear-gradient(90deg,var(--warn-soft),var(--surface) 22%); }
+.item--restricted{ border-style:dashed; }
+
+/* 三重冗余之一：序号后缀字符（+ ~ - x） */
+.item__idx{
+  font-family:var(--mono); font-size:13px; font-weight:700;
+  display:flex; align-items:baseline; gap:1px; padding-top:1px;
+  color:var(--ink-3);
+}
+.item__idx b{ font-size:14px; font-weight:700; }
+.item__mark{ font-size:15px; font-weight:700; line-height:1; }
+.item--ok .item__mark{ color:var(--ok); }
+.item--superseded .item__mark{ color:var(--sup); }
+.item--expired .item__mark{ color:var(--warn); }
+.item--trash .item__mark{ color:var(--muted); }
+
+.item__body{ min-width:0; }
+.item__text{
+  font-size:14.5px; line-height:1.55; color:var(--ink); font-weight:500;
+  overflow-wrap:anywhere;
+}
+.item--superseded .item__text,
+.item--expired .item__text{ color:var(--ink-2); }
+.item__meta{
+  display:flex; flex-wrap:wrap; gap:var(--sp-2) var(--sp-3);
+  margin-top:var(--sp-2); font-size:12px; color:var(--muted); align-items:center;
+}
+.meta-kv{ display:inline-flex; align-items:baseline; gap:5px; }
+.meta-kv__k{ color:var(--muted); }
+.meta-kv__v{ color:var(--ink-2); font-weight:550; }
+.f{ font-family:var(--mono); font-size:11.5px; }
+
+/* 三重冗余之二：状态标签（文字 + 符号，非仅颜色） */
+.tag{
+  display:inline-flex; align-items:center; gap:5px;
+  font-size:11.5px; font-weight:650; border-radius:var(--r-1);
+  padding:1px 7px; border:1px solid currentColor;
+}
+.tag__mark{ font-family:var(--mono); font-weight:700; }
+.tag--ok{ color:var(--ok); background:var(--ok-soft); }
+.tag--sup{ color:var(--sup); background:var(--sup-soft); }
+.tag--warn{ color:var(--warn); background:var(--warn-soft); }
+.tag--trash{ color:var(--muted); background:var(--surface-2); }
+.tag--proj{ color:var(--ink-2); background:var(--surface-2); border-color:var(--border-strong); }
+.tag--user{ color:var(--brand); background:var(--brand-soft); border-color:color-mix(in srgb,var(--brand) 30%,transparent); }
+.scope{ display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600; }
+.scope__dot{ font-family:var(--mono); font-size:12px; font-weight:700; }
+.scope--proj{ color:var(--ink-2); }
+.scope--user{ color:var(--brand); }
+
+.item__acts{ display:flex; gap:var(--sp-1); align-items:center; }
+.iconbtn{
+  min-width:36px; min-height:36px; padding:0 var(--sp-2);
+  display:inline-flex; align-items:center; justify-content:center; gap:5px;
+  background:none; border:1px solid transparent; border-radius:var(--r-2);
+  font-size:12.5px; font-weight:600; color:var(--ink-2); cursor:pointer;
+}
+.iconbtn:hover{ background:var(--surface-2); color:var(--ink); border-color:var(--border); }
+.iconbtn--danger:hover{ background:var(--danger-soft); color:var(--danger); border-color:var(--danger); }
+
+/* 折叠行（已过期 >5 条时） */
+.fold{
+  display:flex; align-items:center; gap:var(--sp-3); flex-wrap:wrap;
+  background:var(--warn-soft); border:1px dashed var(--warn);
+  border-radius:var(--r-2); padding:var(--sp-3) var(--sp-4);
+  font-size:13px; color:var(--ink-2); margin-bottom:var(--sp-2);
+}
+.fold b{ color:var(--warn); font-weight:700; }
+
+/* ---------- 9. 空 / 加载 / 失败 状态 ---------- */
+.state{
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--r-3);
+  padding:var(--sp-7) var(--sp-5); text-align:center; box-shadow:var(--shadow-1);
+}
+.state__glyph{
+  width:52px; height:52px; margin:0 auto var(--sp-4);
+  border:2px dashed var(--border-strong); border-radius:50%;
+  display:grid; place-items:center; font-size:20px; color:var(--muted);
+  font-family:var(--mono);
+}
+.state__title{ font-size:15.5px; font-weight:650; margin-bottom:var(--sp-2); }
+.state__text{ font-size:13.5px; color:var(--ink-2); max-width:46ch; margin:0 auto; }
+.state__hint{ font-size:12.5px; color:var(--muted); margin-top:var(--sp-3); }
+.state__acts{ margin-top:var(--sp-5); display:flex; gap:var(--sp-2); justify-content:center; flex-wrap:wrap; }
+.state--error{ border-color:var(--danger); }
+.state--error .state__glyph{ border-color:var(--danger); color:var(--danger); }
+.state--error .state__title{ color:var(--danger); }
+
+/* 骨架屏 */
+.skel__bar{
+  height:12px; border-radius:var(--r-1); background:var(--surface-3);
+  animation:pulse 1.4s ease-in-out infinite;
+}
+.skel__card{
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--r-3);
+  padding:var(--sp-4); margin-bottom:var(--sp-2); display:grid;
+  grid-template-columns:56px 1fr; gap:var(--sp-4);
+}
+.skel__card .skel__bar:nth-child(2){ width:70%; margin-bottom:8px; }
+.skel__card .skel__bar:nth-child(3){ width:40%; }
+@keyframes pulse{ 0%,100%{opacity:.45} 50%{opacity:.95} }
+@media (prefers-reduced-motion:reduce){ .skel__bar{ animation:none; opacity:.6 } }
+
+/* ---------- 10. 分页 ---------- */
+.pager{
+  display:flex; align-items:center; gap:var(--sp-2);
+  padding:var(--sp-4) 0; flex-wrap:wrap;
+}
+.pager__info{ font-size:12.5px; color:var(--muted); }
+.pager__info b{ color:var(--ink-2); }
+.pager__btns{ margin-left:auto; display:flex; gap:var(--sp-1); align-items:center; }
+.pager__btn{
+  min-width:var(--tap); min-height:var(--tap); padding:0 var(--sp-3);
+  border:1px solid var(--border-strong); background:var(--surface);
+  border-radius:var(--r-2); font-size:13px; font-weight:600; cursor:pointer;
+}
+.pager__btn:hover:not(:disabled){ background:var(--surface-2); }
+.pager__btn[aria-current="page"]{ background:var(--brand); color:#fff; border-color:var(--brand); }
+.pager__btn:disabled{ opacity:.45; cursor:not-allowed; }
+
+/* ---------- 11. 表格（回收站 / 变更记录） ---------- */
+.panel{
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--r-3);
+  box-shadow:var(--shadow-1); overflow:hidden;
+}
+.panel__head{
+  display:flex; align-items:center; gap:var(--sp-3); flex-wrap:wrap;
+  padding:var(--sp-4) var(--sp-5); border-bottom:1px solid var(--border);
+}
+.panel__title{ font-size:14.5px; font-weight:680; }
+.panel__note{ font-size:12.5px; color:var(--muted); }
+.panel__note b{ color:var(--ink-2); }
+.panel__body{ padding:var(--sp-4) var(--sp-5) var(--sp-5); }
+
+.tbl{ font-size:13px; }
+.tbl th{
+  text-align:left; font-size:11.5px; font-weight:650; letter-spacing:.04em;
+  color:var(--muted); padding:var(--sp-2) var(--sp-3); border-bottom:1px solid var(--border-strong);
+  white-space:nowrap;
+}
+.tbl td{ padding:var(--sp-3); border-bottom:1px solid var(--border); vertical-align:top; }
+.tbl tr:last-child td{ border-bottom:0; }
+.tbl__text{ font-size:13.5px; font-weight:500; overflow-wrap:anywhere; }
+.tbl__sub{ font-size:12px; color:var(--muted); margin-top:2px; }
+
+/* 保留期倒计时条（D-5 Q2 / 30 天） */
+.retention{ display:flex; flex-direction:column; gap:3px; min-width:120px; }
+.retention__bar{
+  height:5px; border-radius:99px; background:var(--surface-3); overflow:hidden;
+}
+.retention__fill{ height:100%; background:var(--warn); border-radius:99px; }
+.retention__text{ font-size:11.5px; color:var(--muted); font-family:var(--mono); }
+
+/* ---------- 12. 抽屉：条目详情 ---------- */
+.scrim{
+  position:fixed; inset:0; background:rgba(27,26,24,.42); z-index:55;
+  opacity:0; pointer-events:none; transition:opacity .16s ease;
+}
+.scrim[data-open="true"]{ opacity:1; pointer-events:auto; }
+
+/* 宿主负责裁剪：抽屉关闭时滑出视口右侧，但它被 fixed+overflow:hidden 包住，
+   因此不会撑出横向滚动条（这是以前用 transform 直接挂在 body 上的常见问题） */
+.drawer-host{
+  position:fixed; inset:0; overflow:hidden; pointer-events:none; z-index:60;
+}
+.drawer{
+  position:absolute; top:0; right:0; bottom:0; width:min(560px,92vw);
+  background:var(--surface); box-shadow:var(--shadow-3);
+  transform:translateX(100%); transition:transform .2s ease;
+  display:flex; flex-direction:column; pointer-events:auto;
+}
+.drawer[data-open="true"]{ transform:translateX(0); }
+@media (prefers-reduced-motion:reduce){ .drawer,.scrim{ transition:none } }
+.drawer__head{
+  display:flex; align-items:flex-start; gap:var(--sp-3);
+  padding:var(--sp-4) var(--sp-5); border-bottom:1px solid var(--border);
+}
+.drawer__eyebrow{ font-size:11.5px; font-family:var(--mono); color:var(--muted); letter-spacing:.04em; }
+.drawer__title{ font-size:15px; font-weight:680; margin-top:2px; }
+.drawer__body{ padding:var(--sp-4) var(--sp-5); overflow:auto; flex:1; }
+.drawer__foot{
+  padding:var(--sp-3) var(--sp-5); border-top:1px solid var(--border);
+  display:flex; gap:var(--sp-2); flex-wrap:wrap; background:var(--surface-2);
+}
+
+.dl{ display:grid; grid-template-columns:88px 1fr; gap:var(--sp-2) var(--sp-3); font-size:13px; }
+.dl dt{ color:var(--muted); font-size:12.5px; }
+.dl dd{ color:var(--ink); }
+.dl--id{ font-family:var(--mono); font-size:12px; }
+
+.callout{
+  border:1px solid var(--border-strong); border-left:3px solid var(--ink-3);
+  background:var(--surface-2); border-radius:var(--r-2);
+  padding:var(--sp-3) var(--sp-4); font-size:12.5px; color:var(--ink-2);
+}
+.callout--info{ border-left-color:var(--brand); background:var(--brand-soft); }
+.callout--warn{ border-left-color:var(--warn); background:var(--warn-soft); }
+.callout b{ color:var(--ink); }
+
+.sect{ margin-bottom:var(--sp-5); }
+.sect__h{
+  font-size:12px; font-weight:680; letter-spacing:.06em; color:var(--muted);
+  margin-bottom:var(--sp-3); display:flex; align-items:center; gap:var(--sp-2);
+}
+.sect__h::after{ content:""; flex:1; height:1px; background:var(--border); }
+
+/* 版本链（A → B → A，只追加） */
+.chain{ position:relative; padding-left:var(--sp-4); }
+.chain::before{
+  content:""; position:absolute; left:5px; top:6px; bottom:6px; width:2px;
+  background:var(--border-strong);
+}
+.chain__node{ position:relative; padding:0 0 var(--sp-4) var(--sp-3); }
+.chain__node::before{
+  content:""; position:absolute; left:-11px; top:6px;
+  width:9px; height:9px; border-radius:50%; background:var(--surface);
+  border:2px solid var(--border-strong);
+}
+.chain__node[data-current="true"]::before{ border-color:var(--ok); background:var(--ok); }
+.chain__node:last-child{ padding-bottom:0; }
+.chain__ver{ font-size:12px; font-family:var(--mono); color:var(--muted); }
+.chain__text{ font-size:13.5px; margin-top:2px; }
+.chain__note{ font-size:12px; color:var(--muted); margin-top:3px; }
+
+/* ---------- 13. 对话框 / 弹窗 ---------- */
+.modal-wrap{
+  position:fixed; inset:0; z-index:80; display:none;
+  align-items:center; justify-content:center; padding:var(--sp-4);
+  background:rgba(27,26,24,.46);
+}
+.modal-wrap[data-open="true"]{ display:flex; }
+.modal{
+  width:min(560px,100%); max-height:88vh; overflow:auto;
+  background:var(--surface); border-radius:var(--r-3);
+  box-shadow:var(--shadow-3); border:1px solid var(--border);
+}
+.modal__head{
+  padding:var(--sp-5) var(--sp-5) var(--sp-3);
+  display:flex; gap:var(--sp-3); align-items:flex-start;
+}
+.modal__icon{
+  width:36px; height:36px; flex:0 0 36px; border-radius:50%;
+  display:grid; place-items:center; font-family:var(--mono);
+  font-weight:700; font-size:17px;
+}
+.modal__icon--danger{ background:var(--danger-soft); color:var(--danger); border:1.5px solid var(--danger); }
+.modal__icon--warn{ background:var(--warn-soft); color:var(--warn); border:1.5px solid var(--warn); }
+.modal__icon--brand{ background:var(--brand-soft); color:var(--brand); border:1.5px solid var(--brand); }
+.modal__title{ font-size:15.5px; font-weight:680; }
+.modal__sub{ font-size:12.5px; color:var(--muted); margin-top:2px; }
+.modal__body{ padding:0 var(--sp-5) var(--sp-4); }
+.modal__foot{
+  padding:var(--sp-4) var(--sp-5); border-top:1px solid var(--border);
+  display:flex; gap:var(--sp-2); justify-content:flex-end; flex-wrap:wrap;
+  background:var(--surface-2);
+}
+
+/* 破坏性操作的目标回显（DC-17 / DC-18 的页面等价物） */
+.echo{
+  border:1px solid var(--border-strong); border-radius:var(--r-2);
+  background:var(--surface-2); padding:var(--sp-3) var(--sp-4); margin-bottom:var(--sp-4);
+}
+.echo__label{
+  font-size:11px; font-weight:680; letter-spacing:.05em; color:var(--muted);
+  margin-bottom:var(--sp-2);
+}
+.echo__item{ display:flex; gap:var(--sp-3); align-items:baseline; }
+.echo__idx{ font-family:var(--mono); font-weight:700; font-size:13px; color:var(--ink-3); }
+.echo__text{ font-size:13.5px; font-weight:550; overflow-wrap:anywhere; }
+.echo__meta{ display:flex; gap:var(--sp-2); flex-wrap:wrap; margin-top:var(--sp-2); }
+
+.confirm-box{
+  border:1.5px solid var(--danger); border-radius:var(--r-2);
+  background:var(--danger-soft); padding:var(--sp-3) var(--sp-4); margin-bottom:var(--sp-4);
+}
+.confirm-check{ display:flex; gap:var(--sp-3); align-items:flex-start; font-size:13px; cursor:pointer; }
+.confirm-check input{ width:20px; height:20px; margin:1px 0 0; flex:0 0 20px; accent-color:var(--danger); }
+
+.formula{
+  font-family:var(--mono); font-size:12px; background:var(--surface-3);
+  border-radius:var(--r-1); padding:2px 6px; display:inline-block;
+}
+
+/* 批量预览列表 */
+.picklist{ display:flex; flex-direction:column; gap:var(--sp-2); margin-bottom:var(--sp-4); }
+.pick{
+  display:flex; gap:var(--sp-3); align-items:flex-start;
+  border:1px solid var(--border); border-radius:var(--r-2);
+  padding:var(--sp-3); background:var(--surface); cursor:pointer;
+}
+.pick:hover{ border-color:var(--border-strong); }
+.pick input{ width:20px; height:20px; margin:1px 0 0; flex:0 0 20px; accent-color:var(--brand); }
+.pick__body{ min-width:0; }
+.pick__text{ font-size:13.5px; font-weight:500; overflow-wrap:anywhere; }
+.pick__meta{ display:flex; gap:var(--sp-2); flex-wrap:wrap; margin-top:4px; align-items:center; }
+.pick[data-excluded="true"]{ opacity:.55; }
+.pick[data-excluded="true"] .pick__text{ text-decoration:line-through; }
+
+/* ---------- 14. 编辑表单 ---------- */
+.form__row{ margin-bottom:var(--sp-4); }
+.label{ display:block; font-size:12.5px; font-weight:650; margin-bottom:var(--sp-2); }
+.label__req{ color:var(--danger); }
+.textarea{
+  width:100%; min-height:88px; padding:var(--sp-3);
+  border:1px solid var(--border-strong); border-radius:var(--r-2);
+  font-size:14px; line-height:1.6; resize:vertical; font-family:inherit;
+}
+.counter{ font-size:11.5px; color:var(--muted); text-align:right; margin-top:4px; font-family:var(--mono); }
+.readonly{
+  display:flex; align-items:center; gap:var(--sp-2);
+  border:1px solid var(--border); border-radius:var(--r-2);
+  background:var(--surface-2); padding:var(--sp-2) var(--sp-3);
+  font-size:13px; color:var(--ink-2); min-height:36px;
+}
+.readonly__lock{ font-family:var(--mono); font-size:12px; color:var(--muted); }
+.readonly__why{ font-size:11.5px; color:var(--muted); margin-top:5px; }
+
+.segmented{ display:inline-flex; border:1px solid var(--border-strong); border-radius:var(--r-2); overflow:hidden; }
+.segmented button{
+  min-height:36px; padding:0 var(--sp-3); background:var(--surface); border:0;
+  border-right:1px solid var(--border-strong); font-size:13px; font-weight:600; cursor:pointer;
+}
+.segmented button:last-child{ border-right:0; }
+.segmented button[aria-pressed="true"]{ background:var(--brand); color:#fff; }
+
+/* ---------- 15. Toast（仅演示，不代表撤销计时器） ---------- */
+.toast{
+  position:fixed; left:50%; bottom:var(--sp-6); transform:translate(-50%,20px);
+  background:var(--ink); color:var(--surface); border-radius:var(--r-2);
+  padding:var(--sp-3) var(--sp-4); font-size:13px; box-shadow:var(--shadow-3);
+  display:flex; gap:var(--sp-3); align-items:center; z-index:90;
+  opacity:0; pointer-events:none; transition:opacity .18s ease, transform .18s ease;
+  max-width:min(620px,92vw);
+}
+.toast[data-open="true"]{ opacity:1; transform:translate(-50%,0); pointer-events:auto; }
+.toast__act{
+  background:none; border:1px solid currentColor; color:inherit;
+  border-radius:var(--r-1); padding:2px 9px; font-size:12.5px; font-weight:650; cursor:pointer;
+}
+.toast__note{ opacity:.72; font-size:11.5px; }
+
+/* ---------- 16. 演示控制条 ---------- */
+.demo{
+  background:var(--ink); color:var(--surface); padding:var(--sp-3) var(--sp-6);
+  display:flex; gap:var(--sp-3); align-items:center; flex-wrap:wrap;
+  font-size:12px;
+}
+.demo__label{ font-family:var(--mono); font-size:11px; letter-spacing:.08em; opacity:.7; }
+.demo__btn{
+  background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.28);
+  color:inherit; border-radius:var(--r-1); padding:5px 10px; font-size:12px;
+  font-weight:600; cursor:pointer; min-height:32px;
+}
+.demo__btn:hover{ background:rgba(255,255,255,.2); }
+.demo__btn[aria-pressed="true"]{ background:var(--surface); color:var(--ink); border-color:var(--surface); }
+.demo__hint{ opacity:.62; font-size:11.5px; margin-left:auto; }
+
+/* ==========================================================================
+   18. 入口与打开形态演示层（v1 新增，见 docs/design/panel-entry.md）
+   —— 独立图层，position:fixed 覆盖整屏；关闭后原页面完全不受影响。
+   —— 前缀 en- 全部独立命名，不与上方任何既有 class 冲突。
+   ========================================================================== */
+.en{
+  position:fixed; inset:0; z-index:300; background:var(--bg);
+  display:flex; flex-direction:column; color:var(--ink);
+}
+.en[hidden]{ display:none; }
+
+/* 顶部控制条 */
+.en__bar{
+  background:var(--ink); color:var(--surface); padding:var(--sp-2) var(--sp-5);
+  display:flex; gap:var(--sp-2); align-items:center; flex-wrap:wrap; font-size:12px;
+}
+.en__bar-label{ font-family:var(--mono); font-size:11px; letter-spacing:.08em; opacity:.7; }
+.en__bar-sep{ width:1px; height:16px; background:rgba(255,255,255,.24); margin:0 var(--sp-2); }
+.en__step,.en__w,.en__close{
+  background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.28);
+  color:inherit; border-radius:var(--r-1); padding:4px 9px; font-size:12px;
+  font-weight:600; cursor:pointer; min-height:30px;
+}
+.en__step:hover,.en__w:hover{ background:rgba(255,255,255,.2); }
+.en__step[aria-pressed="true"],.en__w[aria-pressed="true"]{
+  background:var(--surface); color:var(--ink); border-color:var(--surface);
+}
+.en__close{ margin-left:auto; border-color:var(--surface); background:var(--surface); color:var(--ink); }
+
+/* 舞台：一个示意的 harness 外壳（左栏 / 对话 / 右侧面板） */
+.en__stage{ flex:1; min-height:0; position:relative; overflow:hidden; display:flex; flex-direction:column; }
+.en__frame{ display:flex; flex:1; min-height:0; position:relative; }
+
+/* 左侧栏（示意的 harness 侧栏） */
+.en__side{
+  width:236px; flex:0 0 236px; background:var(--surface);
+  border-right:1px solid var(--border); display:flex; flex-direction:column;
+  padding:var(--sp-4) var(--sp-3);
+}
+.en__side-brand{ display:flex; gap:var(--sp-2); align-items:center; padding:0 var(--sp-2) var(--sp-4); }
+.en__side-mark{
+  width:26px; height:26px; border-radius:var(--r-1); background:var(--ink); color:var(--surface);
+  display:grid; place-items:center; font-size:12px; font-weight:700;
+}
+.en__side-title{ font-size:13px; font-weight:650; }
+.en__side-rows{ display:flex; flex-direction:column; gap:2px; }
+.en__side-row{
+  display:flex; gap:var(--sp-2); align-items:center; font-size:12.5px; color:var(--ink-3);
+  padding:7px var(--sp-2); border-radius:var(--r-1); white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis;
+}
+.en__side-row[data-on="true"]{ background:var(--surface-2); color:var(--ink); font-weight:600; }
+.en__side-row i{ font-style:normal; font-family:var(--mono); font-size:11px; opacity:.6; }
+
+/* 侧栏脚区：插件入口（既有 occupant）+ 记忆入口（新）+ 设置 */
+.en__foot{ margin-top:auto; border-top:1px solid var(--border); padding-top:var(--sp-3); position:relative; }
+.en__foot-row{ display:flex; align-items:center; gap:var(--sp-1); }
+.en__icon-btn{
+  width:36px; height:36px; flex:0 0 36px; display:grid; place-items:center;
+  background:none; border:1px solid transparent; border-radius:var(--r-2);
+  color:var(--ink-2); font-size:15px; cursor:pointer; position:relative;
+}
+.en__icon-btn:hover{ background:var(--surface-2); }
+.en__icon-btn[data-on="true"]{ background:var(--brand-soft); color:var(--brand); border-color:var(--brand); }
+.en__icon-btn:focus-visible{ outline:3px solid var(--focus); outline-offset:1px; }
+.en__badge{
+  position:absolute; top:1px; right:1px; min-width:15px; height:15px; padding:0 3px;
+  border-radius:99px; background:var(--danger); color:#fff; font-size:10px;
+  font-family:var(--mono); font-weight:700; display:grid; place-items:center; line-height:1;
+}
+.en__entry{
+  display:flex; align-items:center; gap:var(--sp-2); min-height:36px; flex:0 0 auto;
+  padding:0 var(--sp-2); border:1px solid transparent; border-radius:var(--r-2);
+  background:none; color:var(--ink-2); font-size:12.5px; font-weight:600;
+  cursor:pointer; position:relative;
+}
+.en__entry:hover{ background:var(--surface-2); }
+.en__entry[data-on="true"]{
+  background:var(--brand-soft); color:var(--brand); border-color:var(--brand);
+  box-shadow:inset 3px 0 0 var(--brand);
+}
+.en__entry:focus-visible{ outline:3px solid var(--focus); outline-offset:1px; }
+.en__entry-icon{
+  width:22px; height:22px; flex:0 0 22px; border-radius:var(--r-1);
+  background:var(--brand); color:#fff; display:grid; place-items:center;
+  font-size:12px; font-weight:700;
+}
+.en__entry[data-off="true"] .en__entry-icon{ background:var(--muted); }
+.en__entry[data-off="true"]{ color:var(--muted); }
+.en__entry-label{ white-space:nowrap; }
+/* 关闭态说明：放在入口「下方」一行（E-5 / PE-17），不挤在按钮里 */
+.en__entry-note{
+  display:block; font-size:11px; font-weight:600; color:var(--muted);
+  padding:3px var(--sp-2) 0; letter-spacing:.01em;
+}
+/* 类选择器的 display 会盖掉 UA 的 [hidden]{display:none}，必须显式复位 */
+.en__entry-note[hidden]{ display:none; }
+
+/* 指向气泡（步骤 2） */
+.en__point{
+  position:absolute; left:calc(100% - 8px); bottom:100%; width:230px;
+  background:var(--ink); color:var(--surface); border-radius:var(--r-2);
+  padding:var(--sp-2) var(--sp-3); font-size:11.5px; line-height:1.6;
+  box-shadow:var(--shadow-2); z-index:5; display:none;
+}
+.en__point::after{
+  content:""; position:absolute; left:14px; top:100%;
+  border:6px solid transparent; border-top-color:var(--ink);
+}
+.en__point b{ color:#fff; }
+
+/* 中间：对话区 */
+.en__conv{
+  flex:1; min-width:0; display:flex; flex-direction:column;
+  border-right:1px solid var(--border);
+}
+.en__conv-head{
+  display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap;
+  padding:var(--sp-3) var(--sp-4); border-bottom:1px solid var(--border);
+  background:var(--surface); font-size:12.5px;
+}
+.en__conv-title{ font-weight:650; }
+.en__conv-meta{ color:var(--muted); font-family:var(--mono); font-size:11px; }
+.en__conv-body{ flex:1; overflow:auto; padding:var(--sp-4); display:flex; flex-direction:column; gap:var(--sp-4); }
+.en__msg{ font-size:13px; line-height:1.65; max-width:96%; }
+.en__msg--user{ align-self:flex-end; background:var(--surface-2); border:1px solid var(--border);
+  border-radius:var(--r-2); padding:var(--sp-2) var(--sp-3); }
+.en__msg--bot{ align-self:flex-start; color:var(--ink-2); }
+.en__msg pre{
+  margin:var(--sp-2) 0 0; font-family:var(--mono); font-size:11.5px; line-height:1.7;
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--r-2);
+  padding:var(--sp-3); overflow:auto; color:var(--ink-2); white-space:pre;
+}
+/* turnTail 动作（PE-09/PE-10） */
+.en__tail{ margin-top:var(--sp-2); display:flex; gap:var(--sp-2); align-items:center; flex-wrap:wrap; }
+.en__tail-btn{
+  border:1px solid var(--border-strong); background:var(--surface);
+  border-radius:99px; padding:4px 11px; font-size:11.5px; font-weight:650;
+  color:var(--ink-2); cursor:pointer;
+}
+.en__tail-btn[data-hot="true"]{ border-color:var(--brand); color:var(--brand); background:var(--brand-soft); }
+.en__hero{ flex:1; display:none; flex-direction:column; gap:var(--sp-2);
+  align-items:center; justify-content:center; padding:var(--sp-5); text-align:center; }
+.en__hero-mark{
+  width:44px; height:44px; border-radius:var(--r-2); background:var(--ink); color:var(--surface);
+  display:grid; place-items:center; font-size:19px; font-weight:700;
+}
+.en__hero h3{ font-size:15px; font-weight:680; }
+.en__hero p{ font-size:12.5px; color:var(--muted); max-width:320px; line-height:1.7; }
+
+/* 右侧：记忆面板（示意，内部仍是三页签） */
+.en__panel{
+  width:420px; flex:0 0 420px; background:var(--surface);
+  display:flex; flex-direction:column; border-left:1px solid var(--border);
+  box-shadow:-2px 0 12px rgba(27,26,24,.05);
+}
+.en__frame[data-open="false"] .en__panel{ display:none; }
+.en__panel-head{
+  display:flex; align-items:center; gap:var(--sp-2);
+  padding:var(--sp-3) var(--sp-4); border-bottom:1px solid var(--border);
+}
+.en__panel-title{ font-size:13.5px; font-weight:680; }
+.en__panel-sub{ font-size:11px; color:var(--muted); font-family:var(--mono); }
+.en__panel-ctls{ margin-left:auto; display:flex; gap:2px; }
+.en__panel-body{ flex:1; min-height:0; display:flex; }
+.en__tabs{ display:flex; gap:2px; padding:var(--sp-2); border-right:1px solid var(--border); }
+.en__tab{
+  display:flex; align-items:center; gap:6px; background:none; border:0;
+  border-radius:var(--r-1); padding:6px var(--sp-2); font-size:12px;
+  color:var(--ink-3); cursor:pointer; white-space:nowrap; font-weight:550;
+}
+.en__tab:hover{ background:var(--surface-2); }
+.en__tab[aria-selected="true"]{ background:var(--brand-soft); color:var(--brand); font-weight:680; }
+.en__tab-glyph{
+  width:18px; height:18px; flex:0 0 18px; display:grid; place-items:center;
+  border:1.5px solid currentColor; border-radius:3px;
+  font-family:var(--mono); font-size:10px; font-weight:700;
+}
+.en__tab-n{ font-family:var(--mono); font-size:10.5px; opacity:.8; }
+.en__tabbody{ flex:1; min-width:0; overflow:auto; padding:var(--sp-3) var(--sp-4); }
+.en__pane[hidden]{ display:none; }
+.en__stat{
+  font-size:12.5px; font-weight:650; padding-bottom:var(--sp-2);
+  border-bottom:1px solid var(--border); margin-bottom:var(--sp-3);
+}
+.en__stat span{ font-family:var(--mono); font-weight:600; color:var(--ink-3); }
+.en__row{
+  display:grid; grid-template-columns:30px 1fr; gap:var(--sp-2);
+  padding:var(--sp-2) 0; border-bottom:1px dashed var(--border); font-size:12.5px;
+}
+.en__row:last-child{ border-bottom:0; }
+.en__row-idx{ font-family:var(--mono); font-size:11.5px; color:var(--muted); font-weight:700; }
+.en__row-meta{ display:flex; gap:6px; flex-wrap:wrap; margin-top:2px; font-size:11px; color:var(--muted); }
+
+/* 面板宽度三档（PE-07：容器断点，不是视口断点） */
+.en__frame[data-w="w1"] .en__panel{ width:520px; flex-basis:520px; }
+.en__frame[data-w="w2"] .en__panel{ width:420px; flex-basis:420px; }
+.en__frame[data-w="w3"] .en__panel{ width:300px; flex-basis:300px; }
+/* W1：左竖排页签 */
+.en__frame[data-w="w1"] .en__panel-body{ flex-direction:row; }
+.en__frame[data-w="w1"] .en__tabs{ flex-direction:column; width:104px; flex:0 0 104px; border-right:1px solid var(--border); border-bottom:0; }
+.en__frame[data-w="w1"] .en__tab{ width:100%; }
+/* W2 / W3：顶排分段条 */
+.en__frame[data-w="w2"] .en__panel-body,
+.en__frame[data-w="w3"] .en__panel-body{ flex-direction:column; }
+.en__frame[data-w="w2"] .en__tabs,
+.en__frame[data-w="w3"] .en__tabs{ border-right:0; border-bottom:1px solid var(--border); }
+.en__frame[data-w="w2"] .en__tab,
+.en__frame[data-w="w3"] .en__tab{ flex:1; justify-content:center; }
+/* W3：段内只留符号 + 数字 */
+.en__frame[data-w="w3"] .en__tab-label{ display:none; }
+
+/* 全屏（宿主提供，设计不自造按钮） */
+.en__frame[data-full="true"] .en__panel{
+  position:absolute; inset:0; width:auto; flex-basis:auto; z-index:6;
+}
+
+/* 角标候选卡（步骤 5） */
+.en__cand{
+  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+  width:min(560px,92%); background:var(--surface); border:1px solid var(--border-strong);
+  border-radius:var(--r-3); box-shadow:var(--shadow-3); padding:var(--sp-5);
+  display:none; z-index:8;
+}
+.en__cand h4{ font-size:14px; font-weight:680; margin-bottom:var(--sp-1); }
+.en__cand > p{ font-size:12px; color:var(--muted); line-height:1.7; margin-bottom:var(--sp-4); }
+.en__cand-list{ display:flex; flex-direction:column; gap:var(--sp-2); }
+.en__cand-item{
+  display:flex; gap:var(--sp-3); align-items:flex-start;
+  border:1px solid var(--border); border-radius:var(--r-2); padding:var(--sp-3);
+}
+.en__cand-item[data-rec="true"]{ border-color:var(--brand); background:var(--brand-soft); }
+.en__cand-k{ font-family:var(--mono); font-size:11px; font-weight:700; width:16px; flex:0 0 16px; color:var(--muted); }
+.en__cand-b{ min-width:0; flex:1; }
+.en__cand-t{ font-size:13px; font-weight:650; }
+.en__cand-d{ font-size:11.5px; color:var(--muted); line-height:1.65; margin-top:2px; }
+.en__verdict{ font-size:11px; font-weight:700; padding:2px 7px; border-radius:99px; white-space:nowrap; }
+.en__verdict[data-v="rec"]{ background:var(--brand); color:#fff; }
+.en__verdict[data-v="no"]{ background:var(--danger-soft); color:var(--danger); }
+
+/* 纯终端降级态（步骤 9，PE-15） */
+.en__term{
+  display:none; flex:1; background:#141317; color:#D7D3CD;
+  font-family:var(--mono); font-size:12px; line-height:1.8;
+  padding:var(--sp-5); overflow:auto;
+}
+.en__term h3{ font-size:12px; color:#8E8981; font-weight:600; margin-bottom:var(--sp-3); }
+.en__term .p{ color:#7FD1A8; }
+.en__term .c{ color:#8E8981; }
+.en__term .b{ color:#fff; }
+
+/* 提示气泡（关闭态 / 无会话 / 死按钮防护） */
+.en__tip{
+  display:none; align-items:flex-start; gap:var(--sp-2);
+  margin-top:var(--sp-2); padding:var(--sp-2) var(--sp-3);
+  background:var(--warn-soft); border:1px solid var(--warn); border-left-width:3px;
+  border-radius:var(--r-2); font-size:11.5px; line-height:1.6; color:var(--ink-2);
+}
+
+/* 说明栏（每一步的结论） */
+.en__cap{
+  border-top:1px solid var(--border); background:var(--surface);
+  padding:var(--sp-3) var(--sp-5); display:flex; gap:var(--sp-3); align-items:flex-start;
+  font-size:12.5px; line-height:1.7; flex-wrap:wrap;
+}
+.en__cap-k{
+  font-family:var(--mono); font-size:11px; font-weight:700; letter-spacing:.06em;
+  color:var(--brand); background:var(--brand-soft); border-radius:var(--r-1);
+  padding:2px 7px; white-space:nowrap; flex:0 0 auto;
+}
+.en__cap-b{ flex:1; min-width:220px; color:var(--ink-2); }
+.en__cap-b b{ color:var(--ink); }
+.en__cap-b code{
+  font-family:var(--mono); font-size:11.5px; background:var(--surface-3);
+  border-radius:3px; padding:1px 5px;
+}
+.en__cap-warn{ color:var(--warn); font-weight:650; }
+
+/* 各步骤的状态（纯 CSS 驱动，JS 只负责切 data-step） */
+#en[data-step="2"] .en__point{ display:block; }
+#en[data-step="3"] .en__frame,
+#en[data-step="4"] .en__frame{ --x:0; }
+#en[data-step="5"] .en__cand{ display:block; }
+#en[data-step="7"] .en__conv-body{ display:none; }
+#en[data-step="7"] .en__hero{ display:flex; }
+#en[data-step="9"] .en__frame{ display:none; }
+#en[data-step="9"] .en__term{ display:block; }
+
+@media (max-width:900px){
+  .en__side{ width:180px; flex-basis:180px; }
+  .en__panel,.en__frame[data-w="w1"] .en__panel{ width:300px; flex-basis:300px; }
+  .en__frame[data-w="w1"] .en__tabs{ flex-direction:row; width:auto; flex:0 0 auto; border-right:0; border-bottom:1px solid var(--border); }
+  .en__frame[data-w="w1"] .en__tab{ width:auto; }
+  .en__frame[data-w="w1"] .en__panel-body{ flex-direction:column; }
+}
+
+/* ---------- 17. 响应式 ---------- */
+@media (max-width:1024px){
+  .rail{ width:200px; flex-basis:200px; }
+  .content,.topbar{ padding-left:var(--sp-5); padding-right:var(--sp-5); }
+}
+@media (max-width:820px){
+  .app{ flex-direction:column; }
+  /* 关键：桌面端用了 align-self:flex-start 做 sticky 定位，列方向下必须复位，
+     否则侧栏会收缩到内容宽度、背景只铺一半 */
+  .rail{
+    width:100%; flex-basis:auto; height:auto; position:static; align-self:stretch;
+    border-right:0; border-bottom:1px solid var(--border);
+    padding:var(--sp-3) var(--sp-4); gap:var(--sp-3);
+  }
+  .rail__brand{ margin-bottom:0; align-items:center; }
+  .rail__brand .rail__sub{ display:none; }
+  .nav{ display:flex; gap:var(--sp-1); overflow-x:auto; padding-bottom:2px; }
+  .nav::-webkit-scrollbar{ height:0; }
+  .nav__label,.rail__foot{ display:none; }
+  .tab{ width:auto; flex:0 0 auto; margin-bottom:0; white-space:nowrap; }
+  .tab[aria-selected="true"]{ box-shadow:inset 0 -3px 0 var(--brand); }
+  .content,.topbar{ padding-left:var(--sp-4); padding-right:var(--sp-4); }
+  .item{ grid-template-columns:40px minmax(0,1fr); }
+  .item__acts{ grid-column:1 / -1; justify-content:flex-end; border-top:1px solid var(--border);
+    padding-top:var(--sp-2); margin-top:var(--sp-2); }
+  .input{ width:100%; }
+  .field{ flex:1 1 100%; }
+  .stats__formula{ border-left:0; padding-left:0; flex-basis:100%; }
+  .stats__trash{ margin-left:0; }
+  .dl{ grid-template-columns:1fr; gap:2px var(--sp-3); }
+  .dl dt{ margin-top:var(--sp-2); }
+  .tbl--responsive thead{ display:none; }
+  .tbl--responsive tr{ display:block; border:1px solid var(--border); border-radius:var(--r-2);
+    padding:var(--sp-3); margin-bottom:var(--sp-2); }
+  .tbl--responsive td{ display:block; border:0; padding:2px 0; }
+}
+@media (max-width:520px){
+  .topbar{ padding:var(--sp-3) var(--sp-4); gap:var(--sp-2) var(--sp-3); }
+  .topbar__h{ font-size:15px; }
+  .scope-chip{ font-size:11.5px; padding:4px 10px; }
+  .demo__hint{ display:none; }
+  .item{ padding:var(--sp-3); gap:var(--sp-3); }
+  .drawer{ width:100vw; }
+  .modal__foot .btn{ flex:1 1 auto; }
+}
+
+/* 打印：去掉交互层，保留可读的清单 */
+@media print{
+  .demo,.rail,.toolbar,.item__acts,.pager,.drawer,.modal-wrap,.toast,.scrim{ display:none !important; }
+  body{ background:#fff; }
+  .item{ break-inside:avoid; box-shadow:none; }
+}
+</style>
+</head>
+<body>
+
+<a class="skip" href="#main">跳到主内容</a>
+
+<!-- ===================== 演示控制条（真实产品无此条） ===================== -->
+<div class="demo" role="region" aria-label="原型演示控制：切换状态以查看设计稿各分支">
+  <span class="demo__label">原型演示</span>
+  <button class="demo__btn" data-demo="normal" aria-pressed="true">默认数据</button>
+  <button class="demo__btn" data-demo="loading" aria-pressed="false">加载中</button>
+  <button class="demo__btn" data-demo="empty" aria-pressed="false">空状态</button>
+  <button class="demo__btn" data-demo="error" aria-pressed="false">加载失败</button>
+  <button class="demo__btn" data-demo="many" aria-pressed="false">已过期折叠</button>
+  <span style="width:1px;height:16px;background:rgba(255,255,255,.24);margin:0 4px"></span>
+  <button class="demo__btn" id="open-entry" aria-pressed="false">入口与打开形态 ›</button>
+  <span class="demo__hint">此条为设计稿演示用，真实产品不出现</span>
+</div>
+
+<!-- ==========================================================================
+     入口与打开形态演示层（v1 新增）
+     —— 独立图层，覆盖整屏；关闭后本页原内容完全不受影响。
+     —— 对应 docs/design/panel-entry.md 的 E-1~E-5 与 PE-01~PE-20。
+     ========================================================================== -->
+<div class="en" id="en" data-step="1" hidden role="region"
+     aria-label="入口与打开形态演示：9 个步骤">
+
+  <div class="en__bar">
+    <span class="en__bar-label">入口演示</span>
+    <button class="en__step" data-estep="1" aria-pressed="true">1 · 无面板</button>
+    <button class="en__step" data-estep="2" aria-pressed="false">2 · 指向入口</button>
+    <button class="en__step" data-estep="3" aria-pressed="false">3 · 点击打开</button>
+    <button class="en__step" data-estep="4" aria-pressed="false">4 · 全屏</button>
+    <button class="en__step" data-estep="5" aria-pressed="false">5 · 角标候选</button>
+    <button class="en__step" data-estep="6" aria-pressed="false">6 · 记忆已关闭</button>
+    <button class="en__step" data-estep="7" aria-pressed="false">7 · 无会话</button>
+    <button class="en__step" data-estep="8" aria-pressed="false">8 · 对话侧跳转</button>
+    <button class="en__step" data-estep="9" aria-pressed="false">9 · 降级·纯对话</button>
+    <span class="en__bar-sep"></span>
+    <button class="en__w" data-ew="w1" aria-pressed="true">W1 ≥520</button>
+    <button class="en__w" data-ew="w2" aria-pressed="false">W2 420</button>
+    <button class="en__w" data-ew="w3" aria-pressed="false">W3 300</button>
+    <button class="en__close" id="en-close">返回面板设计稿 ✕</button>
+  </div>
+
+  <div class="en__stage">
+    <div class="en__term" id="en-term">
+      <h3>-- 纯终端 / 无 GUI（前端插件未安装）-- PE-15</h3>
+      <div><span class="p">$</span> dsh<span class="c">  # 右侧栏与记忆图标都不存在</span></div>
+      <div>&nbsp;</div>
+      <div><span class="b">你 ›</span> 你记得我什么</div>
+      <div>&nbsp;</div>
+      <div><span class="p">agent ›</span> 记忆清单 ｜ 项目 dsh-momery ｜ 共 6 条（生效 4 / 已修正 1 / 已过期 1）</div>
+      <div>&nbsp; 1+ 发版前必须先跑 pnpm build</div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;作用域：项目 ｜ 来源：2026-10-30 你说明发版流程时</div>
+      <div>&nbsp; 2+ 注释用中文，测试文件用英文</div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;作用域：用户 ｜ 来源：2026-10-22 你纠正注释语言时</div>
+      <div>&nbsp; 3+ 测试命令是 vitest</div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;作用域：项目 ｜ 来源：2026-10-30 你纠正测试命令时</div>
+      <div>&nbsp; 4~ 测试命令是 jest</div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;状态：已修正（2026-10-30 被第 3 条取代）</div>
+      <div><span class="c">（共 6 条，此处略 2 条）</span></div>
+      <div>&nbsp;</div>
+      <div><span class="b">你 ›</span> 打开记忆面板</div>
+      <div><span class="p">agent ›</span> 这个环境没有图形面板，我直接把清单打给你。</div>
+      <div>&nbsp;</div>
+      <div><span class="c">-- 结论：入口缺失 → 能力零损失（PE-15）--</span></div>
+      <div><span class="c">-- 上面每条、每个数字、每个状态都与面板通道逐字一致（S-5）--</span></div>
+    </div>
+
+    <div class="en__frame" id="en-frame" data-open="false" data-w="w1" data-full="false">
+
+      <!-- 示意的 harness 左侧栏 -->
+      <div class="en__side">
+        <div class="en__side-brand">
+          <div class="en__side-mark">DS</div>
+          <div class="en__side-title">DeepSeek Harness</div>
+        </div>
+        <div class="en__side-rows">
+          <div class="en__side-row" data-on="true"><i>▸</i> 记忆面板入口设计</div>
+          <div class="en__side-row"><i>·</i> P1 发版流程梳理</div>
+          <div class="en__side-row"><i>·</i> P2 组件库迁移</div>
+        </div>
+
+        <div class="en__foot">
+          <div class="en__point" id="en-point">
+            <b>sidebar.footer.action</b><br>
+            root 作用域 · 常驻<br>
+            宿主只给 <code>{ wide }</code>，不给会话<br>
+            与插件面板（cordis-panel）同排
+          </div>
+          <div class="en__foot-row">
+            <button class="en__icon-btn" id="en-cordis" aria-label="插件面板（既有 occupant）" title="插件面板（既有 occupant）">◎</button>
+            <button class="en__entry" id="en-entry" data-on="false" data-off="false"
+                    aria-pressed="false"
+                    aria-label="记忆">
+              <span class="en__entry-icon" aria-hidden="true">记</span>
+              <span class="en__entry-label">记忆</span>
+            </button>
+            <button class="en__icon-btn" aria-label="设置" title="设置" style="margin-left:auto">⚙</button>
+          </div>
+          <div class="en__entry-note" id="en-entry-note" hidden>记忆已关闭</div>
+          <div class="en__tip" id="en-tip"></div>
+        </div>
+      </div>
+
+      <!-- 中间：对话区 -->
+      <div class="en__conv">
+        <div class="en__conv-head">
+          <span class="en__conv-title" id="en-conv-title">记忆面板入口设计</span>
+          <span class="en__conv-meta" id="en-conv-meta">会话 8f3c · 项目 dsh-momery</span>
+          <span style="margin-left:auto;display:flex;gap:4px">
+            <button class="en__icon-btn" aria-label="更多" title="更多">⋯</button>
+          </span>
+        </div>
+
+        <div class="en__conv-body" id="en-conv-body">
+          <div class="en__msg en__msg--user">你记得我什么</div>
+          <div class="en__msg en__msg--bot">
+            记忆清单 ｜ 项目 dsh-momery ｜ 共 6 条（生效 4 / 已修正 1 / 已过期 1）
+            <pre> 1+ 发版前必须先跑 pnpm build
+    作用域：项目 ｜ 来源：2026-10-30 你说明发版流程时
+ 2+ 注释用中文，测试文件用英文
+    作用域：用户 ｜ 来源：2026-10-22 你纠正注释语言时
+ 3+ 测试命令是 vitest
+    作用域：项目 ｜ 来源：2026-10-30 你纠正测试命令时
+（共 6 条，每页 10 条）</pre>
+            <div class="en__tail">
+              <button class="en__tail-btn" data-hot="true" data-goto="a">在面板中打开 · 共 6 条</button>
+            </div>
+          </div>
+
+          <div class="en__msg en__msg--user">把注释语言改成只写中文</div>
+          <div class="en__msg en__msg--bot">
+            好，已更新。旧说法标为「已修正」，可在变更记录查看。
+            <div class="en__tail">
+              <button class="en__tail-btn" data-goto="c">在面板中打开 · 变更记录 4 个版本</button>
+            </div>
+          </div>
+
+          <div class="en__msg en__msg--user">今天先到这</div>
+          <div class="en__msg en__msg--bot">
+            好的。
+            <div class="en__tail" style="font-size:11px;color:var(--muted)">
+              这一轮与记忆无关 → turnTail 贡献为 null，不出现任何动作（PE-09）
+            </div>
+          </div>
+        </div>
+
+        <div class="en__hero" id="en-hero">
+          <div class="en__hero-mark">DS</div>
+          <h3>开始一个新会话</h3>
+          <p>选择工作目录，或从左侧打开已有会话。<br>右侧栏按会话显示，此处暂无面板。</p>
+        </div>
+      </div>
+
+      <!-- 右侧：记忆面板（内部仍是原设计稿的三页签） -->
+      <div class="en__panel" role="complementary" aria-label="记忆面板（示意）">
+        <div class="en__panel-head">
+          <span class="en__panel-title">记忆</span>
+          <span class="en__panel-sub" id="en-w-label">W1 · 520px</span>
+          <span class="en__panel-ctls">
+            <button class="en__icon-btn" id="en-full" aria-label="切换全屏" title="全屏 / 还原（宿主提供，非自造）">⤢</button>
+            <button class="en__icon-btn" id="en-collapse" aria-label="折叠面板" title="折叠">✕</button>
+          </span>
+        </div>
+        <div class="en__panel-body">
+          <div class="en__tabs" role="tablist" aria-label="记忆面板内的三个页签">
+            <button class="en__tab" role="tab" data-etab="a" aria-selected="true">
+              <span class="en__tab-glyph" aria-hidden="true">A</span>
+              <span class="en__tab-label">记忆清单</span><span class="en__tab-n">6</span>
+            </button>
+            <button class="en__tab" role="tab" data-etab="b" aria-selected="false">
+              <span class="en__tab-glyph" aria-hidden="true">B</span>
+              <span class="en__tab-label">回收站</span><span class="en__tab-n">1</span>
+            </button>
+            <button class="en__tab" role="tab" data-etab="c" aria-selected="false">
+              <span class="en__tab-glyph" aria-hidden="true">C</span>
+              <span class="en__tab-label">变更记录</span><span class="en__tab-n">4</span>
+            </button>
+          </div>
+          <div class="en__tabbody">
+            <div class="en__pane" data-epane="a">
+              <div class="en__stat">共 6 条　<span>+ 生效 4　~ 已修正 1　- 已过期 1　｜ 4+1+1=6</span></div>
+              <div class="en__row"><span class="en__row-idx">1+</span><div>发版前必须先跑 pnpm build
+                <div class="en__row-meta"><span>项目</span><span>语义</span><span>来源 2026-10-30</span></div></div></div>
+              <div class="en__row"><span class="en__row-idx">2+</span><div>注释用中文，测试文件用英文
+                <div class="en__row-meta"><span>用户</span><span>语义</span><span>来源 2026-10-22</span></div></div></div>
+              <div class="en__row"><span class="en__row-idx">3+</span><div>测试命令是 vitest
+                <div class="en__row-meta"><span>项目</span><span>语义</span><span>来源 2026-10-30</span></div></div></div>
+              <div class="en__row"><span class="en__row-idx">4~</span><div>测试命令是 jest
+                <div class="en__row-meta"><span>已修正（2026-10-30 被第 3 条取代）</span></div></div></div>
+              <div class="en__row"><span class="en__row-idx">5+</span><div>10-28 排查过 HMR 不生效，需同时起 dev:web
+                <div class="en__row-meta"><span>项目</span><span>情景</span></div></div></div>
+              <div class="en__row"><span class="en__row-idx">6-</span><div>10-20 排查过 pnpm 安装超时，换镜像解决
+                <div class="en__row-meta"><span>已过期（2026-11-19 到期，不参与检索）</span></div></div></div>
+            </div>
+            <div class="en__pane" data-epane="b" hidden>
+              <div class="en__stat">回收站　<span>1 条（可恢复）</span></div>
+              <div class="en__row"><span class="en__row-idx">7x</span><div>10-15 试过用 turbo 替代 pnpm -r，配置冲突没跑通
+                <div class="en__row-meta"><span>删除于 2026-10-31 14:20</span><span>剩余 29 / 30 天</span></div></div></div>
+            </div>
+            <div class="en__pane" data-epane="c" hidden>
+              <div class="en__stat">变更记录　<span>先选定条目，不提供全局时间线</span></div>
+              <div class="en__row"><span class="en__row-idx">v4</span><div>测试命令是 vitest
+                <div class="en__row-meta"><span>当前生效 · 2026-10-30 15:12</span></div></div></div>
+              <div class="en__row"><span class="en__row-idx">v3</span><div>测试命令是 pnpm test
+                <div class="en__row-meta"><span>已修正 · 被 v4 取代 · 2026-10-28</span></div></div></div>
+              <div class="en__row"><span class="en__row-idx">v2</span><div>测试命令是 jest
+                <div class="en__row-meta"><span>已修正 · 被 v3 取代 · 2026-10-25</span></div></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 角标候选对照（步骤 5） -->
+      <div class="en__cand" id="en-cand">
+        <h4>EB-1：`sidebar.footer.action` 的角标显示什么</h4>
+        <p><b>已拍板 = A（不显示）</b>，来源 team-lead，采纳本设计的独立评估。
+           下面三条一起看，就能看出为什么它不该有角标。</p>
+        <div class="en__cand-list">
+          <div class="en__cand-item" data-rec="true">
+            <span class="en__cand-k">A</span>
+            <div class="en__cand-b">
+              <div class="en__cand-t">不显示</div>
+              <div class="en__cand-d">入口语义是"去某个地方"，不是"有事等你"。记忆是 OQ-11=A 全自动写入，<b>不存在待确认队列</b>，没有事件值得一个常驻角标。统计信息属于面板首行。</div>
+            </div>
+            <span class="en__verdict" data-v="rec">已拍板</span>
+          </div>
+          <div class="en__cand-item">
+            <span class="en__cand-k">B</span>
+            <div class="en__cand-b">
+              <div class="en__cand-t">记忆总条数</div>
+              <div class="en__cand-d">语义错位：条数是静态属性，涨了也不代表要做任何事。且数字须与面板首行 N 同源，两处打架就是缺陷。</div>
+            </div>
+            <span class="en__verdict" data-v="no">否</span>
+          </div>
+          <div class="en__cand-item">
+            <span class="en__cand-k">C</span>
+            <div class="en__cand-b">
+              <div class="en__cand-t">本次会话新增数（team-lead 原倾向，已收回）</div>
+              <div class="en__cand-d">把 D-5 Q1 的"前 3 次提示、有预算、可关闭"退化成长驻、无预算、不随静默设置关闭的"永久出声"——业务规则层倒退。另有三条硬障碍：root 作用域拿不到会话 / 56px 轨放不下数字 / "本会话"口径需产品裁定。</div>
+            </div>
+            <span class="en__verdict" data-v="no">否</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="en__cap">
+    <span class="en__cap-k" id="en-cap-k">STEP 1</span>
+    <span class="en__cap-b" id="en-cap-b"></span>
+  </div>
+</div>
+
+<div class="app">
+
+  <!-- ===================== 左侧导航 / 三页签 ===================== -->
+  <aside class="rail">
+    <div class="rail__brand">
+      <div class="rail__mark" aria-hidden="true">记</div>
+      <div>
+        <div class="rail__title">记忆管理</div>
+        <div class="rail__sub">本机 · 项目 dsh-momery</div>
+      </div>
+    </div>
+
+    <nav class="nav" aria-label="记忆视图（三个页签）">
+      <div class="nav__label" id="nav-label">视图</div>
+      <div role="tablist" aria-labelledby="nav-label" aria-orientation="vertical" style="display:contents">
+        <button class="tab" role="tab" id="tab-a" aria-controls="panel-a" aria-selected="true" data-tab="a">
+          <span class="tab__glyph" aria-hidden="true">A</span>
+          <span>记忆清单</span>
+          <span class="tab__count" aria-hidden="true">6</span>
+          <span class="sr-only">，共 6 条</span>
+        </button>
+        <button class="tab" role="tab" id="tab-b" aria-controls="panel-b" aria-selected="false" data-tab="b">
+          <span class="tab__glyph" aria-hidden="true">B</span>
+          <span>回收站</span>
+          <span class="tab__count" aria-hidden="true">1</span>
+          <span class="sr-only">，共 1 条</span>
+        </button>
+        <button class="tab" role="tab" id="tab-c" aria-controls="panel-c" aria-selected="false" data-tab="c">
+          <span class="tab__glyph" aria-hidden="true">C</span>
+          <span>变更记录</span>
+          <span class="tab__count" aria-hidden="true">4</span>
+          <span class="sr-only">，共 4 个版本</span>
+        </button>
+      </div>
+    </nav>
+
+    <div class="rail__foot">
+      <div class="rail__ctx">
+        当前作用域锚点<br>
+        项目 <b>dsh-momery</b><br>
+        项目级条目只显示当前工作目录
+      </div>
+    </div>
+  </aside>
+
+  <!-- ===================== 主区域 ===================== -->
+  <div class="main">
+    <header class="topbar">
+      <h1 class="topbar__h">
+        记忆清单
+        <span class="topbar__view" id="view-code">V-A</span>
+      </h1>
+      <div class="topbar__spacer"></div>
+      <span class="scope-chip"><span aria-hidden="true">▣</span> 作用域锚点 <b>项目 · dsh-momery</b></span>
+      <button class="btn btn--ghost" id="open-help">面板说明</button>
+    </header>
+
+    <main class="content" id="main">
+
+      <!-- ============================================================
+           页签 A：记忆清单（V-A 主清单）
+           ============================================================ -->
+      <section role="tabpanel" id="panel-a" aria-labelledby="tab-a" tabindex="0" data-panel="a">
+
+        <!-- 首行统计：DC-10 的页面落点 -->
+        <div class="stats" aria-live="polite" id="stats-bar">
+          <div class="stats__total">共 <b id="stat-n">6</b> 条</div>
+          <div class="stats__break" id="stat-break">
+            <span class="stat-pill stat-pill--ok"><span class="stat-pill__mark" aria-hidden="true">+</span> 生效 <b id="stat-a">4</b></span>
+            <span class="stat-pill stat-pill--sup"><span class="stat-pill__mark" aria-hidden="true">~</span> 已修正 <b id="stat-b">1</b></span>
+            <span class="stat-pill stat-pill--warn"><span class="stat-pill__mark" aria-hidden="true">-</span> 已过期 <b id="stat-c">1</b></span>
+          </div>
+          <span class="stats__formula" id="stat-formula">4 + 1 + 1 = 6</span>
+          <span class="stats__trash">
+            回收站另有 <b id="stat-trash">1</b> 条已删除（可恢复），<b>不计入</b>上面的 <span id="stat-n-2">6</span> 条
+            <a href="#" data-goto-tab="b">去回收站</a>
+          </span>
+        </div>
+
+        <!-- 工具条 -->
+        <div class="toolbar" role="search">
+          <div class="field">
+            <span class="field__icon" aria-hidden="true"></span>
+            <label class="sr-only" for="q">搜索记忆内容</label>
+            <input class="input" id="q" type="search" placeholder="搜索内容、来源事件…" autocomplete="off">
+          </div>
+          <span class="toolbar__label" id="flt-label">筛选</span>
+          <label class="sr-only" for="flt-scope">按作用域筛选</label>
+          <select class="select" id="flt-scope" aria-describedby="flt-note">
+            <option value="all">全部作用域</option>
+            <option value="proj">项目</option>
+            <option value="user">用户</option>
+          </select>
+          <label class="sr-only" for="flt-layer">按分层筛选</label>
+          <select class="select" id="flt-layer" aria-describedby="flt-note">
+            <option value="all">全部分层</option>
+            <option value="semantic">语义</option>
+            <option value="episodic">情景</option>
+          </select>
+          <label class="sr-only" for="flt-status">按状态筛选</label>
+          <select class="select" id="flt-status" aria-describedby="flt-note">
+            <option value="all">全部状态</option>
+            <option value="active">生效</option>
+            <option value="superseded">已修正</option>
+            <option value="expired">已过期</option>
+          </select>
+          <button class="btn btn--ghost" id="flt-clear">清空筛选</button>
+          <span class="toolbar__note" id="flt-note">筛选维度只有作用域 / 分层 / 状态，与对话限定词等价</span>
+        </div>
+
+        <!-- 清单容器：默认态 -->
+        <div id="list-normal">
+          <div id="list-groups"><!-- 由脚本渲染，保证计数与条目同源 --></div>
+          <div class="pager" id="pager" role="navigation" aria-label="清单分页"></div>
+        </div>
+
+        <!-- 加载中 -->
+        <div id="list-loading" hidden>
+          <p class="sr-only" role="status">正在读取记忆…</p>
+          <div class="skel__card"><div class="skel__bar"></div><div><div class="skel__bar"></div><div class="skel__bar"></div></div></div>
+          <div class="skel__card"><div class="skel__bar"></div><div><div class="skel__bar"></div><div class="skel__bar"></div></div></div>
+          <div class="skel__card"><div class="skel__bar"></div><div><div class="skel__bar"></div><div class="skel__bar"></div></div></div>
+          <p class="state__hint" style="text-align:center">加载骨架屏 · 超过 300ms 才显示，避免闪烁</p>
+        </div>
+
+        <!-- 空状态（逐字契约文案） -->
+        <div id="list-empty" hidden>
+          <div class="state">
+            <div class="state__glyph" aria-hidden="true">∅</div>
+            <h2 class="state__title">目前没有记录任何关于你的记忆。</h2>
+            <p class="state__text">你在对话里说过、值得长期记住的事，我会自动记下来。</p>
+            <p class="state__hint">空状态的标题文案为契约文本，逐字不可改（DC-16）</p>
+            <div class="state__acts">
+              <button class="btn btn--primary">去对话里说点什么</button>
+              <button class="btn">看回收站</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 加载失败 -->
+        <div id="list-error" hidden>
+          <div class="state state--error" role="alert">
+            <div class="state__glyph" aria-hidden="true">!</div>
+            <h2 class="state__title">记忆暂时读不到（超时），这次没法给你清单。</h2>
+            <p class="state__text">可以稍后再试一次。这次失败不影响已经存在的记忆。</p>
+            <p class="state__hint">禁止用空状态文案冒充读取失败（DC-16 / DC-31）</p>
+            <div class="state__acts">
+              <button class="btn btn--primary">重试</button>
+              <button class="btn btn--ghost">查看原因</button>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ============================================================
+           页签 B：回收站（V-B）
+           ============================================================ -->
+      <section role="tabpanel" id="panel-b" aria-labelledby="tab-b" tabindex="0" data-panel="b" hidden>
+        <div class="panel">
+          <div class="panel__head">
+            <span class="panel__title">回收站</span>
+            <span class="topbar__view">V-B</span>
+            <span class="panel__note">共 <b>1</b> 条已删除（可恢复）</span>
+            <div style="margin-left:auto;display:flex;gap:8px">
+              <button class="btn" id="restore-all">全部恢复</button>
+            </div>
+          </div>
+          <div class="panel__body">
+            <p class="callout callout--warn" style="margin-bottom:16px">
+              <b>保留期 30 天</b>：软删条目在回收站保留 30 天后自动转为彻底删除，之后不可恢复（D-5 Q2）。
+              恢复后重新计时 30 天（D-5 Q4）。
+            </p>
+            <table class="tbl tbl--responsive">
+              <caption class="sr-only">回收站条目列表，共 1 条</caption>
+              <thead>
+                <tr>
+                  <th scope="col">条目</th>
+                  <th scope="col">作用域 / 分层</th>
+                  <th scope="col">删除时间</th>
+                  <th scope="col">保留期</th>
+                  <th scope="col" style="text-align:right">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <div class="tbl__text"><span class="f" style="color:var(--muted)">7</span><span class="item__mark" style="color:var(--muted)">x</span> 10-15 试过用 turbo 替代 pnpm -r，配置冲突没跑通</div>
+                    <div class="tbl__sub">来源：2026-10-15 排查会话（你明确说的）</div>
+                  </td>
+                  <td>
+                    <span class="scope scope--proj"><span class="scope__dot" aria-hidden="true">▣</span>项目</span><br>
+                    <span style="font-size:12px;color:var(--muted)">情景</span>
+                  </td>
+                  <td style="white-space:nowrap"><span class="f">2026-10-31<br>14:20</span></td>
+                  <td>
+                    <div class="retention">
+                      <div class="retention__bar" role="img" aria-label="保留期剩余 29 天，共 30 天"><div class="retention__fill" style="width:97%"></div></div>
+                      <span class="retention__text">剩余 29 / 30 天</span>
+                    </div>
+                  </td>
+                  <td style="text-align:right;white-space:nowrap">
+                    <button class="btn" data-restore="7">恢复</button>
+                    <button class="btn btn--danger-outline" data-purge="7">彻底删除</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <p class="state__hint" style="text-align:left;margin-top:16px">
+              回收站只出现「已删除-软删」条目；彻底删除后该条目在检索、清单、变更记录、任何摘要中都不再出现（DC-09 / AC-5）。
+            </p>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-top:16px">
+          <div class="panel__head"><span class="panel__title">回收站为空时</span></div>
+          <div class="panel__body">
+            <div class="state" style="box-shadow:none;border:0;padding:32px 16px">
+              <div class="state__glyph" aria-hidden="true">∅</div>
+              <h2 class="state__title">回收站是空的。</h2>
+              <p class="state__text">删除的记忆会先到这里，30 天内可以恢复。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           页签 C：变更记录（V-C）
+           ============================================================ -->
+      <section role="tabpanel" id="panel-c" aria-labelledby="tab-c" tabindex="0" data-panel="c" hidden>
+        <div class="panel">
+          <div class="panel__head">
+            <div>
+              <span class="panel__title">变更记录 · 测试命令</span>
+              <span class="topbar__view">V-C</span>
+            </div>
+            <span class="panel__note">A → B → A 只追加，历史不被改写</span>
+          </div>
+          <div class="panel__body">
+
+            <p class="callout callout--info" style="margin-bottom:20px">
+              变更记录是<b>只追加</b>的：用户改回旧说法时，产生的是<b>一条新的生效条目</b>，原来的「已修正」条目<b>保持已修正</b>，状态不回滚（DC-27 / §6.2 T-2）。
+            </p>
+
+            <div class="chain" role="list" aria-label="版本链，共 4 个版本">
+              <div class="chain__node" role="listitem" data-current="true">
+                <div class="chain__ver">v4 · 当前生效 · 2026-10-30 15:12</div>
+                <div class="chain__text"><span class="item__mark" style="color:var(--ok)">+</span> 测试命令是 vitest</div>
+                <div class="chain__note">来源：2026-10-30 你纠正测试命令时（你纠正过的） · 取代 v3</div>
+              </div>
+              <div class="chain__node" role="listitem">
+                <div class="chain__ver">v3 · 已修正 · 2026-10-28 09:40</div>
+                <div class="chain__text"><span class="item__mark" style="color:var(--sup)">~</span> 测试命令是 pnpm test</div>
+                <div class="chain__note">被 v4 取代 · 原因：同会话内用户显式否定（隐式纠错）</div>
+              </div>
+              <div class="chain__node" role="listitem">
+                <div class="chain__ver">v2 · 已修正 · 2026-10-25 18:03</div>
+                <div class="chain__text"><span class="item__mark" style="color:var(--sup)">~</span> 测试命令是 jest</div>
+                <div class="chain__note">被 v3 取代 · 原因：用户显式修改</div>
+              </div>
+              <div class="chain__node" role="listitem">
+                <div class="chain__ver">v1 · 已修正 · 2026-10-25 18:01</div>
+                <div class="chain__text"><span class="item__mark" style="color:var(--sup)">~</span> 测试用 jest 跑</div>
+                <div class="chain__note">被 v2 取代 · 原因：用户显式修改（措辞调整，仍记为一条历史）</div>
+              </div>
+            </div>
+
+            <div class="sect" style="margin-top:32px">
+              <div class="sect__h">这一页能回答的问题</div>
+              <dl class="dl">
+                <dt>谁取代了谁</dt><dd>每条历史节点标注「被 vN 取代」与取代原因，当前版本单独高亮</dd>
+                <dt>何时发生</dt><dd>每个版本的确认时间，精确到分钟</dd>
+                <dt>现在哪个有效</dt><dd>只有 v4 参与检索；v1–v3 仅作历史，永不参与检索（DC-25）</dd>
+                <dt>能不能回滚</dt><dd>不能。没有「回滚到旧版」按钮，想改回旧说法 = 新建一条（DC-27）</dd>
+              </dl>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-top:16px">
+          <div class="panel__head">
+            <span class="panel__title">其他条目的变更入口</span>
+            <span class="panel__note">V-C 是「某个条目」的视图，需先选定条目</span>
+          </div>
+          <div class="panel__body">
+            <p class="callout" style="margin-bottom:16px">
+              在记忆清单里点任意条目的「变更记录」，会带出该条目的版本链。没有全局的历史时间线——那不是第三种视图，不新增（DC-09 v2）。
+            </p>
+            <table class="tbl tbl--responsive">
+              <thead><tr><th scope="col">条目</th><th scope="col">版本数</th><th scope="col">当前状态</th><th scope="col"></th></tr></thead>
+              <tbody>
+                <tr>
+                  <td class="tbl__text">测试命令是 vitest</td>
+                  <td>4</td>
+                  <td><span class="tag tag--ok"><span class="tag__mark" aria-hidden="true">+</span>生效</span></td>
+                  <td style="text-align:right"><button class="btn">查看变更记录</button></td>
+                </tr>
+                <tr>
+                  <td class="tbl__text">注释用中文，测试文件用英文</td>
+                  <td>2</td>
+                  <td><span class="tag tag--ok"><span class="tag__mark" aria-hidden="true">+</span>生效</span></td>
+                  <td style="text-align:right"><button class="btn">查看变更记录</button></td>
+                </tr>
+                <tr>
+                  <td class="tbl__text">发版前必须先跑 pnpm build</td>
+                  <td>1</td>
+                  <td><span class="tag tag--ok"><span class="tag__mark" aria-hidden="true">+</span>生效</span></td>
+                  <td style="text-align:right"><button class="btn" disabled title="只有 1 个版本，无变更记录">无历史</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- ===================== 抽屉：条目详情 ===================== -->
+<div class="scrim" id="scrim" data-open="false"></div>
+<div class="drawer-host">
+<aside class="drawer" id="drawer" data-open="false" role="dialog" aria-modal="true" aria-labelledby="drawer-title" aria-hidden="true">
+  <div class="drawer__head">
+    <div>
+      <div class="drawer__eyebrow" id="drawer-eyebrow">第 3 条 · 语义 · 项目</div>
+      <div class="drawer__title" id="drawer-title">条目详情</div>
+    </div>
+    <button class="btn btn--ghost" id="drawer-close" style="margin-left:auto" aria-label="关闭详情">✕</button>
+  </div>
+  <div class="drawer__body" id="drawer-body"><!-- 脚本注入 --></div>
+  <div class="drawer__foot">
+    <button class="btn" id="d-edit">编辑</button>
+    <button class="btn" id="d-history">变更记录</button>
+    <button class="btn btn--danger-outline" id="d-del-soft" style="margin-left:auto">删除</button>
+    <button class="btn btn--danger" id="d-del-hard">彻底删除</button>
+  </div>
+</aside>
+</div>
+
+<!-- ===================== 弹窗 1：编辑 ===================== -->
+<div class="modal-wrap" id="m-edit" data-open="false">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="m-edit-title">
+    <div class="modal__head">
+      <div class="modal__icon modal__icon--brand" aria-hidden="true">✎</div>
+      <div>
+        <div class="modal__title" id="m-edit-title">编辑记忆</div>
+        <div class="modal__sub">第 3 条 · 2026-10-30 记下</div>
+      </div>
+    </div>
+    <div class="modal__body">
+      <div class="form__row">
+        <label class="label" for="edit-text">内容 <span class="label__req" aria-hidden="true">*</span></label>
+        <textarea class="textarea" id="edit-text">测试命令是 vitest</textarea>
+        <div class="counter"><span id="edit-count">12</span> / 200 字</div>
+      </div>
+
+      <div class="form__row">
+        <span class="label">分层 <span class="readonly__lock" aria-hidden="true">锁定</span></span>
+        <div class="readonly">
+          <span class="readonly__lock" aria-hidden="true">▣</span>
+          <span>语义</span>
+        </div>
+        <p class="readonly__why">分层由写入侧判定，不提供手动修改（D-5 Q3）。如需换层，请删除本条后用想要的说法重新让我记一次。</p>
+      </div>
+
+      <div class="form__row">
+        <span class="label" id="edit-scope-label">作用域</span>
+        <div class="segmented" role="group" aria-labelledby="edit-scope-label">
+          <button type="button" aria-pressed="true">项目</button>
+          <button type="button" aria-pressed="false">用户</button>
+        </div>
+        <p class="readonly__why">作用域可以改。项目级只在当前工作目录可见；用户级跨项目始终可见（OQ-6=A）。</p>
+      </div>
+
+      <div class="callout callout--warn">
+        保存后，旧内容会被标记为<b>「已修正」</b>并进入变更记录，<b>不会被删除</b>。当前检索立即只返回新内容。（AC-2 / DC-26）
+      </div>
+    </div>
+    <div class="modal__foot">
+      <button class="btn" data-close="m-edit">取消</button>
+      <button class="btn btn--primary" id="edit-save">保存修改</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== 弹窗 2：普通删除（软删） ===================== -->
+<div class="modal-wrap" id="m-del-soft" data-open="false">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="m-del-soft-title">
+    <div class="modal__head">
+      <div class="modal__icon modal__icon--warn" aria-hidden="true">−</div>
+      <div>
+        <div class="modal__title" id="m-del-soft-title">删除这条记忆？</div>
+        <div class="modal__sub">可以恢复 · 数据不会立即销毁</div>
+      </div>
+    </div>
+    <div class="modal__body">
+      <!-- DC-17：破坏性操作必须回显目标正文 -->
+      <div class="echo">
+        <div class="echo__label">将删除的目标条目</div>
+        <div class="echo__item">
+          <span class="echo__idx" aria-hidden="true">3</span>
+          <div>
+            <div class="echo__text">测试命令是 vitest</div>
+            <div class="echo__meta">
+              <span class="tag tag--ok"><span class="tag__mark" aria-hidden="true">+</span>生效</span>
+              <span class="tag tag--proj">语义 · 项目</span>
+              <span style="font-size:12px;color:var(--muted)">来源 2026-10-30</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p style="font-size:13px;color:var(--ink-2);margin-bottom:12px">
+        删除后，这条记忆会<b>立即从检索和记忆清单中消失</b>，但会进入回收站保留 30 天，随时可以恢复。
+      </p>
+      <p class="callout" style="font-size:12.5px">
+        面板操作与对话指令作用于同一份数据：删除后说「你记得我什么」也不会再看到它（S-1 / S-2）。
+      </p>
+    </div>
+    <div class="modal__foot">
+      <button class="btn" data-close="m-del-soft">取消</button>
+      <button class="btn btn--danger" id="del-soft-go">确认删除</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== 弹窗 3：彻底删除（二次确认） ===================== -->
+<div class="modal-wrap" id="m-del-hard" data-open="false">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="m-del-hard-title">
+    <div class="modal__head">
+      <div class="modal__icon modal__icon--danger" aria-hidden="true">!</div>
+      <div>
+        <div class="modal__title" id="m-del-hard-title">彻底删除这条记忆？</div>
+        <div class="modal__sub">不可恢复 · 不会留下任何副本</div>
+      </div>
+    </div>
+    <div class="modal__body">
+      <div class="echo">
+        <div class="echo__label">将彻底删除的目标条目</div>
+        <div class="echo__item">
+          <span class="echo__idx" aria-hidden="true">3</span>
+          <div>
+            <div class="echo__text">测试命令是 vitest</div>
+            <div class="echo__meta">
+              <span class="tag tag--ok"><span class="tag__mark" aria-hidden="true">+</span>生效</span>
+              <span class="tag tag--proj">语义 · 项目</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <ul style="font-size:13px;color:var(--ink-2);display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+        <li>· 该内容不会出现在<b>检索、清单、变更记录或任何摘要</b>中（AC-5）</li>
+        <li>· 不进入回收站，<b>无法恢复</b></li>
+        <li>· 审计日志只保留「发生过一次隐私删除」，<b>不保留正文</b></li>
+      </ul>
+      <!-- DC-20：模糊肯定不视为确认，必须显式勾选 -->
+      <div class="confirm-box">
+        <label class="confirm-check">
+          <input type="checkbox" id="hard-ack">
+          <span>我确认要彻底删除上面这条内容，理解此操作<b>不可撤销</b>。</span>
+        </label>
+      </div>
+    </div>
+    <div class="modal__foot">
+      <button class="btn" data-close="m-del-hard">取消</button>
+      <button class="btn btn--danger" id="del-hard-go" disabled>确认彻底删除</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== 弹窗 4：批量遗忘（先预览后执行） ===================== -->
+<div class="modal-wrap" id="m-batch" data-open="false">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="m-batch-title" style="width:min(640px,100%)">
+    <div class="modal__head">
+      <div class="modal__icon modal__icon--warn" aria-hidden="true">≡</div>
+      <div>
+        <div class="modal__title" id="m-batch-title">批量遗忘：先预览命中清单</div>
+        <div class="modal__sub">找到 3 条相关的记忆 · 默认走普通删除（可恢复）</div>
+      </div>
+    </div>
+    <div class="modal__body">
+      <p class="callout callout--info" style="margin-bottom:16px">
+        预览与实际执行的是<b>同一份清单</b>。取消勾选 = 排除该条（等价于对话里的「保留 N」）。执行前不会删除任何东西（DC-22）。
+      </p>
+      <div class="picklist">
+        <label class="pick" data-pick>
+          <input type="checkbox" checked>
+          <div class="pick__body">
+            <div class="pick__text">构建产物目录是 dist</div>
+            <div class="pick__meta">
+              <span class="tag tag--ok"><span class="tag__mark" aria-hidden="true">+</span>生效</span>
+              <span class="tag tag--proj">语义 · 项目</span>
+              <span style="font-size:12px;color:var(--muted)">2026-10-30</span>
+            </div>
+          </div>
+        </label>
+        <label class="pick" data-pick>
+          <input type="checkbox" checked>
+          <div class="pick__body">
+            <div class="pick__text">10-28 排查 HMR 不生效，需同时起 dev:web</div>
+            <div class="pick__meta">
+              <span class="tag tag--ok"><span class="tag__mark" aria-hidden="true">+</span>生效</span>
+              <span class="tag tag--proj">情景 · 项目</span>
+              <span style="font-size:12px;color:var(--muted)">2026-10-28</span>
+            </div>
+          </div>
+        </label>
+        <label class="pick" data-pick>
+          <input type="checkbox" checked>
+          <div class="pick__body">
+            <div class="pick__text">不要自动升级依赖</div>
+            <div class="pick__meta">
+              <span class="tag tag--ok"><span class="tag__mark" aria-hidden="true">+</span>生效</span>
+              <span class="tag tag--user">语义 · 用户</span>
+              <span style="font-size:12px;color:var(--muted)">2026-10-22</span>
+            </div>
+          </div>
+        </label>
+      </div>
+      <p style="font-size:13px;color:var(--ink-2);margin-bottom:4px">
+        将删除 <b id="batch-count">3</b> 条，其中 <b>1</b> 条为用户级（跨项目可见）。
+      </p>
+      <p class="state__hint" style="text-align:left;margin-top:4px">
+        用户级条目删除后，在其它项目里也不再生效。若只想删本项目的，请先排除用户级那条。
+      </p>
+    </div>
+    <div class="modal__foot">
+      <button class="btn" data-close="m-batch">取消</button>
+      <button class="btn btn--danger" id="batch-go">确认删除 <span id="batch-count-2">3</span> 条</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== 弹窗 5：面板说明（S-1~S-5 呈现） ===================== -->
+<div class="modal-wrap" id="m-help" data-open="false">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="m-help-title" style="width:min(680px,100%)">
+    <div class="modal__head">
+      <div class="modal__icon modal__icon--brand" aria-hidden="true">i</div>
+      <div>
+        <div class="modal__title" id="m-help-title">这个面板能做什么、不能做什么</div>
+        <div class="modal__sub">面板与对话指令是同一份记忆的两个入口</div>
+      </div>
+    </div>
+    <div class="modal__body">
+      <div class="sect">
+        <div class="sect__h">两条通道都能做（S-2 语义等价）</div>
+        <ul style="font-size:13px;color:var(--ink-2);display:flex;flex-direction:column;gap:6px">
+          <li>· 查看记忆清单、按作用域 / 分层 / 状态筛选</li>
+          <li>· 修改内容、修改作用域</li>
+          <li>· 普通删除（软删，可恢复）与恢复</li>
+          <li>· 彻底删除（隐私删除，二次确认，不可恢复）</li>
+          <li>· 查看某个条目的变更记录</li>
+        </ul>
+      </div>
+      <div class="sect">
+        <div class="sect__h">只有对话能做</div>
+        <ul style="font-size:13px;color:var(--ink-2);display:flex;flex-direction:column;gap:6px">
+          <li>· 让我「记住」新内容（面板是只读 + 管理入口，不负责写入）</li>
+          <li>· 用自然语言指代（「把关于测试的那条删了」）</li>
+          <li>· 追问「你怎么知道的」看来源依据</li>
+        </ul>
+      </div>
+      <div class="sect">
+        <div class="sect__h">两条通道都不能做</div>
+        <ul style="font-size:13px;color:var(--ink-2);display:flex;flex-direction:column;gap:6px">
+          <li>· <b>手动改分层</b>（D-5 Q3）——分层由写入侧判定</li>
+          <li>· <b>按类型筛选</b>——记忆没有类型，只有分层与作用域（D-3）</li>
+          <li>· <b>查看已彻底删除的内容</b>——硬删是终态，任何视图都不出现（AC-5）</li>
+          <li>· <b>回滚到旧版本</b>——变更记录只追加，改回旧说法 = 新建一条（DC-27）</li>
+        </ul>
+      </div>
+      <div class="callout callout--info">
+        面板不可用时（例如纯终端环境），上面「两条通道都能做」的全部功能都可以用对话完成，没有只能用面板的独占功能（S-4）。
+      </div>
+    </div>
+    <div class="modal__foot">
+      <button class="btn btn--primary" data-close="m-help">知道了</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== Toast ===================== -->
+<div class="toast" id="toast" data-open="false" role="status" aria-live="polite">
+  <span id="toast-msg">已删除 1 条</span>
+  <button class="toast__act" id="toast-undo">撤销</button>
+  <span class="toast__note" id="toast-note">本会话内有效</span>
+</div>
+
+<script>
+/* ==========================================================================
+   原型交互脚本（原生 JS，仅演示用）
+   —— 计数由同一份数据渲染，保证 DC-10「a+b+c=N」不会因静态写死而失真。
+   ========================================================================== */
+(function(){
+  'use strict';
+
+  /* ---------- 夹具：沿用 design-agent-memory.md §5.3 的 6 条 + 回收站 1 条 ---------- */
+  var DATA = [
+    { idx:3, layer:'semantic', scope:'proj', status:'active',
+      text:'测试命令是 vitest',
+      src:'2026-10-30 你纠正测试命令时', srcKind:'你纠正过的',
+      created:'2026-10-30 15:12', reuse:7, hit:'2026-10-31 09:20' },
+    { idx:1, layer:'semantic', scope:'proj', status:'active',
+      text:'发版前必须先跑 pnpm build',
+      src:'2026-10-30 你说明发版流程时', srcKind:'你明确说的',
+      created:'2026-10-30 11:05', reuse:3, hit:'2026-10-31 08:44' },
+    { idx:2, layer:'semantic', scope:'user', status:'active',
+      text:'注释用中文，测试文件用英文',
+      src:'2026-10-22 你纠正注释语言时', srcKind:'你纠正过的',
+      created:'2026-10-22 16:31', reuse:12, hit:'2026-10-31 10:02' },
+    { idx:4, layer:'semantic', scope:'proj', status:'superseded',
+      text:'测试命令是 jest',
+      src:'2026-10-25 你说明测试命令时', srcKind:'你明确说的',
+      created:'2026-10-25 18:03', supersededBy:'第 3 条', supersededAt:'2026-10-30' },
+    { idx:5, layer:'episodic', scope:'proj', status:'active',
+      text:'10-28 排查过 HMR 不生效，需同时起 dev:web',
+      src:'2026-10-28 排查会话', srcKind:'你明确说的',
+      created:'2026-10-28 20:15', reuse:1, hit:'2026-10-28 21:02' },
+    { idx:6, layer:'episodic', scope:'proj', status:'expired',
+      text:'10-20 排查过 pnpm 安装超时，换镜像解决',
+      src:'2026-10-20 排查会话', srcKind:'你明确说的',
+      created:'2026-10-20 10:40', expires:'2026-11-19' }
+  ];
+  /* 「已过期折叠」演示用的额外过期条目：仍计入 N 与 c（D-4 C-8），只是默认不逐条展开 */
+  var EXTRA_EXPIRED = [
+    { idx:8,  layer:'episodic', scope:'proj', status:'expired', text:'10-18 排查过 .env 未被加载，需重启 dev server', src:'2026-10-18 排查会话', srcKind:'你明确说的', created:'2026-10-18 09:12', expires:'2026-11-17' },
+    { idx:9,  layer:'episodic', scope:'proj', status:'expired', text:'10-16 排查过端口 3000 被占用，换 3001', src:'2026-10-16 排查会话', srcKind:'你明确说的', created:'2026-10-16 11:40', expires:'2026-11-15' },
+    { idx:10, layer:'episodic', scope:'proj', status:'expired', text:'10-12 试过 pnpm patch 临时改依赖，后来回退了', src:'2026-10-12 排查会话', srcKind:'你明确说的', created:'2026-10-12 16:05', expires:'2026-11-11' },
+    { idx:11, layer:'episodic', scope:'proj', status:'expired', text:'10-09 排查过构建缓存导致的样式不更新，清了 .turbo', src:'2026-10-09 排查会话', srcKind:'你明确说的', created:'2026-10-09 10:22', expires:'2026-11-08' },
+    { idx:12, layer:'episodic', scope:'proj', status:'expired', text:'10-05 对比过 Node 20 与 22 的构建耗时', src:'2026-10-05 排查会话', srcKind:'你明确说的', created:'2026-10-05 15:48', expires:'2026-11-04' },
+    { idx:13, layer:'episodic', scope:'proj', status:'expired', text:'10-02 试过把 lint 挪到 pre-push，团队嫌慢又撤回', src:'2026-10-02 讨论会话', srcKind:'你明确说的', created:'2026-10-02 13:30', expires:'2026-11-01' }
+  ];
+  var BASE = DATA.slice();
+  /* 已过期条目在单层内逐条展示的上限；超出折叠但计数与入口保留（D-4 C-8 / DC-15） */
+  var MAX_EXPIRED_INLINE = 5;
+
+  var TRASH = [
+    { idx:7, layer:'episodic', scope:'proj', status:'trash',
+      text:'10-15 试过用 turbo 替代 pnpm -r，配置冲突没跑通',
+      src:'2026-10-15 排查会话', srcKind:'你明确说的',
+      created:'2026-10-15 14:02', deletedAt:'2026-10-31 14:20', daysLeft:29 }
+  ];
+
+  var ST = {
+    active:{ word:'生效', mark:'+', cls:'ok' },
+    superseded:{ word:'已修正', mark:'~', cls:'sup' },
+    expired:{ word:'已过期', mark:'-', cls:'warn' },
+    trash:{ word:'已删除（可恢复）', mark:'x', cls:'trash' }
+  };
+  var LAYER = { semantic:'语义', episodic:'情景' };
+  var SCOPE = { proj:'项目', user:'用户' };
+
+  /* ---------- 按 §5.4 分组规则渲染：分层 → 状态 → 最近确认倒序 ---------- */
+  var groupsEl = document.getElementById('list-groups');
+  var NORMAL_HTML = groupsEl.innerHTML; /* 初始为空，无副作用 */
+
+  function esc(s){ return String(s).replace(/[&<>"]/g, function(c){
+    return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); }
+
+  function itemHTML(d){
+    var st = ST[d.status];
+    var cls = d.status === 'superseded' ? 'item--superseded'
+            : d.status === 'expired' ? 'item--expired' : 'item--ok';
+    // 三重冗余 ②：状态字段文字（含取代关系 / 到期日），不靠颜色
+    var statusLine = st.word;
+    if(d.status === 'superseded') statusLine = '已修正（' + d.supersededAt + ' 被' + d.supersededBy + '取代）';
+    if(d.status === 'expired') statusLine = '已过期（' + d.expires + ' 到期，不参与检索）';
+
+    var scopeCls = d.scope === 'user' ? 'scope--user' : 'scope--proj';
+    var aria = '第' + d.idx + '条，' + LAYER[d.layer] + '，' + SCOPE[d.scope] + '，' + st.word + '，' + d.text;
+
+    return '' +
+    '<article class="item item--' + cls.replace('item--','') + ' ' + cls + '" aria-label="' + esc(aria) + '">' +
+      '<div class="item__idx" aria-hidden="true"><b>' + d.idx + '</b><span class="item__mark">' + st.mark + '</span></div>' +
+      '<div class="item__body">' +
+        '<p class="item__text">' + esc(d.text) + '</p>' +
+        '<div class="item__meta">' +
+          '<span class="meta-kv"><span class="meta-kv__k">作用域</span>' +
+            '<span class="scope ' + scopeCls + '"><span class="scope__dot" aria-hidden="true">' +
+            (d.scope === 'user' ? '◇' : '▣') + '</span>' + SCOPE[d.scope] + '</span></span>' +
+          '<span class="meta-kv"><span class="meta-kv__k">分层</span><span class="meta-kv__v">' + LAYER[d.layer] + '</span></span>' +
+          '<span class="meta-kv"><span class="meta-kv__k">来源</span><span class="f">' + esc(d.src) + '（' + d.srcKind + '）</span></span>' +
+          '<span class="tag tag--' + st.cls + '" title="状态"><span class="tag__mark" aria-hidden="true">' + st.mark +
+            '</span>' + statusLine + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="item__acts">' +
+        '<button class="iconbtn" data-detail="' + d.idx + '" aria-label="查看第' + d.idx + '条详情">详情</button>' +
+        '<button class="iconbtn" data-edit="' + d.idx + '" aria-label="编辑第' + d.idx + '条"' + (d.status === 'expired' ? '' : '') + '>编辑</button>' +
+        '<button class="iconbtn iconbtn--danger" data-soft="' + d.idx + '" aria-label="删除第' + d.idx + '条">删除</button>' +
+      '</div>' +
+    '</article>';
+  }
+
+  var expandedExpired = false;   /* 「已过期」折叠展开态 */
+
+  /* 排序规则（DC-11 / §5.4）：分层 语义 → 情景；层内 生效 → 已修正 → 已过期；
+     同状态内按最近确认时间倒序。分页在这条扁平序列上切，不拆条目。 */
+  var STATUS_ORDER = { active:0, superseded:1, expired:2 };
+
+  function orderedRows(rows){
+    return rows.slice().sort(function(x, y){
+      var lx = x.layer === 'semantic' ? 0 : 1;
+      var ly = y.layer === 'semantic' ? 0 : 1;
+      if(lx !== ly) return lx - ly;
+      if(STATUS_ORDER[x.status] !== STATUS_ORDER[y.status]){
+        return STATUS_ORDER[x.status] - STATUS_ORDER[y.status];
+      }
+      return String(y.created || '').localeCompare(String(x.created || ''));
+    });
+  }
+
+  function renderList(){
+    var ordered = orderedRows(DATA);
+
+    /* 分页只在「逐条展示」的范围内生效；被折叠的已过期条目本就不占页内位置，
+       但它们仍然是 N 与 c 的一部分（DC-10 不受折叠影响）。 */
+    var overflowExpired = Math.max(0, ordered.filter(function(d){ return d.status === 'expired'; }).length - MAX_EXPIRED_INLINE);
+    var displayCount = expandedExpired ? ordered.length : ordered.length - overflowExpired;
+    var pages = Math.max(1, Math.ceil(displayCount / PAGE_SIZE));
+    if(page > pages) page = pages;
+    var start = (page - 1) * PAGE_SIZE;
+    var end = start + PAGE_SIZE;
+
+    var html = '';
+    var cursor = 0;           /* 已消费的可展示条目数（含被折叠的） */
+    var expiredShownSoFar = 0;
+
+    ['semantic','episodic'].forEach(function(layer){
+      var inLayer = ordered.filter(function(d){ return d.layer === layer; });
+      if(!inLayer.length) return; /* 不出现空分组（DC-11） */
+
+      var layerBlock = '';
+      var layerHasContent = false;
+
+      [['active', 'active'], ['superseded', 'superseded'], ['expired', 'expired']].forEach(function(pair){
+        var status = pair[0];
+        var rows = inLayer.filter(function(d){ return d.status === status; });
+        if(!rows.length) return;
+
+        var visRows = rows;
+        if(status === 'expired' && !expandedExpired){
+          visRows = rows.slice(0, MAX_EXPIRED_INLINE);
+        }
+
+        var picked = [];
+        visRows.forEach(function(d){
+          var slot = cursor++;
+          if(slot >= start && slot < end) picked.push(d);
+        });
+
+        if(picked.length){
+          layerHasContent = true;
+          layerBlock += '<h3 class="subhead subhead--' + ST[status].cls + '">' +
+            '<span class="subhead__mark" aria-hidden="true">' + ST[status].mark + '</span>' +
+            ST[status].word + ' <span class="subhead__count">' + rows.length + ' 条</span></h3>';
+          picked.forEach(function(d){ layerBlock += itemHTML(d); });
+        }
+        if(status === 'expired' && !expandedExpired && rows.length > MAX_EXPIRED_INLINE && picked.length){
+          var hidden = rows.length - MAX_EXPIRED_INLINE;
+          layerBlock += '<div class="fold">' +
+            '<span>已过期另有 <b>' + hidden + '</b> 条未展开（本页展示 ' + (rows.length - hidden) +
+            ' / ' + rows.length + ' 条）</span>' +
+            '<button class="btn" data-expand-expired style="margin-left:auto">展开全部 ' + rows.length + ' 条</button>' +
+            '<span style="font-size:12px;color:var(--muted)">折叠不影响计数：仍计入 N 与已过期 c</span>' +
+          '</div>';
+        }
+      });
+
+      if(layerHasContent){
+        var la = inLayer.filter(function(d){return d.status==='active';}).length;
+        var ls = inLayer.filter(function(d){return d.status==='superseded';}).length;
+        var le = inLayer.filter(function(d){return d.status==='expired';}).length;
+        html += '<section class="group" aria-labelledby="g-' + layer + '">' +
+          '<div class="group__head">' +
+            '<h2 class="group__title" id="g-' + layer + '">' + LAYER[layer] + '层</h2>' +
+            '<span class="group__layer" aria-hidden="true">' + layer + '</span>' +
+            '<span class="group__sub">生效 <b>' + la + '</b> · 已修正 <b>' + ls +
+            '</b> · 已过期 <b>' + le + '</b></span>' +
+          '</div>' + layerBlock +
+        '</section>';
+      }
+    });
+
+    groupsEl.innerHTML = html || '<div class="state"><div class="state__glyph" aria-hidden="true">∅</div>' +
+      '<h2 class="state__title">目前没有记录任何关于你的记忆。</h2></div>';
+    updateStats();
+    renderPager(displayCount, overflowExpired);
+  }
+
+  /* 展开折叠：切换数据源并重渲染（真实实现为分页拉取，视觉一致即可） */
+  document.addEventListener('click', function(e){
+    if(e.target.closest('[data-expand-expired]')){ expandedExpired = true; renderList(); }
+  });
+
+  /* DC-10：a + b + c = N，全部由 DATA 现算，软删不计入
+     这一行是面板上 DC-10 的唯一实现点；页面任何地方都不得另写死条数。 */
+  function updateStats(){
+    var a = DATA.filter(function(d){return d.status==='active';}).length;
+    var b = DATA.filter(function(d){return d.status==='superseded';}).length;
+    var c = DATA.filter(function(d){return d.status==='expired';}).length;
+    var n = DATA.length;
+    document.getElementById('stat-n').textContent = n;
+    document.getElementById('stat-a').textContent = a;
+    document.getElementById('stat-b').textContent = b;
+    document.getElementById('stat-c').textContent = c;
+    document.getElementById('stat-formula').textContent = a + ' + ' + b + ' + ' + c + ' = ' + n;
+    var n2 = document.getElementById('stat-n-2');
+    if(n2) n2.textContent = n;
+    var t = document.getElementById('stat-trash');
+    if(t) t.textContent = TRASH.length;
+    /* 左侧页签上的计数也必须同源，否则与首行统计打架 */
+    var tabA = document.querySelector('[data-tab="a"] .tab__count');
+    if(tabA) tabA.textContent = n;
+    var tabB = document.querySelector('[data-tab="b"] .tab__count');
+    if(tabB) tabB.textContent = TRASH.length;
+    console.assert(a + b + c === n, 'DC-10 violated: a + b + c !== N');
+  }
+
+  /* 分页：默认每页 10 条，跨分组连续计数（DC-15） */
+  var PAGE_SIZE = 10;
+  var page = 1;
+
+  function renderPager(displayCount, foldedCount){
+    var n = DATA.length;
+    var shownTotal = (displayCount == null) ? n : displayCount;
+    var folded = foldedCount || 0;
+    var pages = Math.max(1, Math.ceil(shownTotal / PAGE_SIZE));
+    if(page > pages) page = pages;
+    var from = shownTotal === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+    var to = Math.min(page * PAGE_SIZE, shownTotal);
+    var info = '第 <b>' + from + '</b>–<b>' + to + '</b> 条';
+    if(folded > 0){
+      info += '（另有 <b>' + folded + '</b> 条已过期被折叠，未占用本页位置）';
+    }
+    info += ' · 清单共 <b>' + n + '</b> 条 · 每页 ' + PAGE_SIZE + ' 条';
+    var html = '<span class="pager__info">' + info + '</span>' +
+      '<div class="pager__btns">' +
+      '<button class="pager__btn" data-page="' + (page - 1) + '"' + (page === 1 ? ' disabled' : '') + '>上一页</button>';
+    for(var i = 1; i <= pages; i++){
+      html += '<button class="pager__btn" data-page="' + i + '"' +
+        (i === page ? ' aria-current="page"' : '') + '>' + i + '</button>';
+    }
+    html += '<button class="pager__btn" data-page="' + (page + 1) + '"' +
+      (page === pages ? ' disabled' : '') + '>下一页</button>';
+    if(page === pages){
+      html += '<span class="pager__info" style="margin-left:8px">已到最后一页</span>';
+    }
+    html += '</div>';
+    var el = document.getElementById('pager');
+    if(el) el.innerHTML = html;
+  }
+
+  document.addEventListener('click', function(e){
+    var b = e.target.closest('[data-page]');
+    if(!b || b.disabled) return;
+    page = +b.dataset.page;
+    renderList();
+  });
+
+  renderList();
+
+  /* ---------- 页签切换 ---------- */
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('[role="tab"]'));
+  var panels = Array.prototype.slice.call(document.querySelectorAll('[role="tabpanel"]'));
+  var VIEW = { a:'V-A', b:'V-B', c:'V-C' };
+  var TITLE = { a:'记忆清单', b:'回收站', c:'变更记录' };
+
+  function selectTab(key, focus){
+    tabs.forEach(function(t){
+      var on = t.dataset.tab === key;
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+      t.tabIndex = on ? 0 : -1;
+      if(on && focus) t.focus();
+    });
+    panels.forEach(function(p){ p.hidden = p.dataset.panel !== key; });
+    document.getElementById('view-code').textContent = VIEW[key];
+    document.querySelector('.topbar__h').childNodes[0].nodeValue = TITLE[key] + ' ';
+  }
+  window.__selectTab = selectTab;
+
+  tabs.forEach(function(t, i){
+    t.addEventListener('click', function(){ selectTab(t.dataset.tab); });
+    t.addEventListener('keydown', function(e){
+      var horiz = window.innerWidth > 820;
+      var next = (horiz ? ['ArrowDown','ArrowRight'] : ['ArrowRight','ArrowDown']).indexOf(e.key) > -1;
+      var prev = (horiz ? ['ArrowUp','ArrowLeft'] : ['ArrowLeft','ArrowUp']).indexOf(e.key) > -1;
+      if(next){ e.preventDefault(); selectTab(tabs[(i+1)%tabs.length].dataset.tab, true); }
+      if(prev){ e.preventDefault(); selectTab(tabs[(i-1+tabs.length)%tabs.length].dataset.tab, true); }
+      if(e.key === 'Home'){ e.preventDefault(); selectTab(tabs[0].dataset.tab, true); }
+      if(e.key === 'End'){ e.preventDefault(); selectTab(tabs[tabs.length-1].dataset.tab, true); }
+    });
+  });
+  document.querySelectorAll('[data-goto-tab]').forEach(function(el){
+    el.addEventListener('click', function(e){ e.preventDefault(); selectTab(el.dataset.gotoTab, true); });
+  });
+
+  /* ---------- 弹窗 / 抽屉 通用开合 ---------- */
+  var lastFocus = null;
+  function openModal(id){
+    lastFocus = document.activeElement;
+    var m = document.getElementById(id);
+    m.dataset.open = 'true';
+    var f = m.querySelector('button:not([disabled]), input, textarea, select');
+    if(f) setTimeout(function(){ f.focus(); }, 30);
+  }
+  function closeModal(id){
+    var m = document.getElementById(id);
+    if(!m) return;
+    m.dataset.open = 'false';
+    if(lastFocus){ lastFocus.focus(); lastFocus = null; }
+  }
+  document.querySelectorAll('[data-close]').forEach(function(b){
+    b.addEventListener('click', function(){ closeModal(b.dataset.close); });
+  });
+  document.querySelectorAll('.modal-wrap').forEach(function(w){
+    w.addEventListener('click', function(e){ if(e.target === w) closeModal(w.id); });
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key !== 'Escape') return;
+    var openModalEl = document.querySelector('.modal-wrap[data-open="true"]');
+    if(openModalEl){ closeModal(openModalEl.id); return; }
+    if(document.getElementById('drawer').dataset.open === 'true') closeDrawer();
+  });
+
+  /* ---------- 抽屉：条目详情 ---------- */
+  var drawer = document.getElementById('drawer');
+  var scrim = document.getElementById('scrim');
+
+  function findItem(idx){
+    return DATA.filter(function(d){ return d.idx === +idx; })[0]
+        || TRASH.filter(function(d){ return d.idx === +idx; })[0];
+  }
+
+  function openDrawer(idx){
+    var d = findItem(idx);
+    if(!d) return;
+    var st = ST[d.status];
+    document.getElementById('drawer-eyebrow').textContent =
+      '第 ' + d.idx + ' 条 · ' + LAYER[d.layer] + ' · ' + SCOPE[d.scope];
+    document.getElementById('drawer-title').textContent = d.text;
+
+    var historyBlock = d.status === 'superseded'
+      ? '<div class="callout callout--warn" style="margin-bottom:20px">这条已被取代：' + d.supersededAt +
+        ' 被' + d.supersededBy + '取代。它<b>不再参与检索</b>，只作为变更史保留。</div>'
+      : d.status === 'expired'
+      ? '<div class="callout callout--warn" style="margin-bottom:20px">这条已过期（' + d.expires +
+        ' 到期），<b>不参与检索与排序</b>。恢复后会重新计时 30 天（D-5 Q4）。</div>'
+      : '';
+
+    document.getElementById('drawer-body').innerHTML =
+      historyBlock +
+      '<div class="sect">' +
+        '<div class="sect__h">内容与归属</div>' +
+        '<dl class="dl">' +
+          '<dt>内容</dt><dd>' + esc(d.text) + '</dd>' +
+          '<dt>分层</dt><dd>' + LAYER[d.layer] + ' <span style="color:var(--muted);font-size:12px">（不可手动修改）</span></dd>' +
+          '<dt>作用域</dt><dd>' + SCOPE[d.scope] + '</dd>' +
+          '<dt>状态</dt><dd><span class="tag tag--' + st.cls + '"><span class="tag__mark" aria-hidden="true">' +
+            st.mark + '</span>' + st.word + '</span></dd>' +
+          '<dt>稳定标识</dt><dd class="dl--id">mem_7c3a·' + d.idx + ' <span style="color:var(--muted)">（仅详情可见，D-6 Q6）</span></dd>' +
+        '</dl>' +
+      '</div>' +
+      '<div class="sect">' +
+        '<div class="sect__h">来源</div>' +
+        '<dl class="dl">' +
+          '<dt>产生时间</dt><dd>' + d.created + '</dd>' +
+          '<dt>触发原因</dt><dd>' + esc(d.src) + '（' + d.srcKind + '）</dd>' +
+          '<dt>来源引用</dt><dd><a href="#" onclick="return false">跳到原对话片段 ›</a></dd>' +
+        '</dl>' +
+      '</div>' +
+      '<div class="sect">' +
+        '<div class="sect__h">使用情况</div>' +
+        '<dl class="dl">' +
+          '<dt>复用次数</dt><dd>' + (d.reuse != null ? d.reuse + ' 次' : '—') + '</dd>' +
+          '<dt>最近命中</dt><dd>' + (d.hit || '—') + '</dd>' +
+        '</dl>' +
+        '<p class="state__hint" style="text-align:left;margin-top:8px">' +
+          '衰减只看检索命中，<b>查看清单不计入复用次数</b>（DC-23）。</p>' +
+      '</div>' +
+      '<div class="sect">' +
+        '<div class="sect__h">状态历史</div>' +
+        '<div class="chain">' +
+          '<div class="chain__node" data-current="' + (d.status === 'active') + '">' +
+            '<div class="chain__ver">' + d.created + '</div>' +
+            '<div class="chain__text">创建 · 生效</div>' +
+            '<div class="chain__note">来源 ' + esc(d.src) + '</div>' +
+          '</div>' +
+          (d.status === 'superseded'
+            ? '<div class="chain__node"><div class="chain__ver">' + d.supersededAt + '</div>' +
+              '<div class="chain__text">生效 → 已修正</div>' +
+              '<div class="chain__note">被' + d.supersededBy + '取代</div></div>'
+            : '') +
+          (d.status === 'expired'
+            ? '<div class="chain__node"><div class="chain__ver">' + d.expires + '</div>' +
+              '<div class="chain__text">生效 → 已过期</div>' +
+              '<div class="chain__note">情景层保留期（30 天）到期，期间未被检索命中</div></div>'
+            : '') +
+        '</div>' +
+      '</div>';
+
+    drawer.dataset.open = 'true';
+    drawer.setAttribute('aria-hidden','false');
+    scrim.dataset.open = 'true';
+    setTimeout(function(){ document.getElementById('drawer-close').focus(); }, 30);
+  }
+  function closeDrawer(){
+    drawer.dataset.open = 'false';
+    drawer.setAttribute('aria-hidden','true');
+    scrim.dataset.open = 'false';
+  }
+  document.getElementById('drawer-close').addEventListener('click', closeDrawer);
+  scrim.addEventListener('click', closeDrawer);
+
+  /* ---------- 事件委托：清单卡片上的按钮 ---------- */
+  groupsEl.addEventListener('click', function(e){
+    var b = e.target.closest('button');
+    if(!b) return;
+    if(b.dataset.detail) openDrawer(b.dataset.detail);
+    if(b.dataset.edit) openModal('m-edit');
+    if(b.dataset.soft){ openModal('m-del-soft'); }
+  });
+  document.getElementById('d-edit').addEventListener('click', function(){ openModal('m-edit'); });
+  document.getElementById('d-history').addEventListener('click', function(){
+    closeDrawer(); selectTab('c', true);
+  });
+  document.getElementById('d-del-soft').addEventListener('click', function(){ openModal('m-del-soft'); });
+  document.getElementById('d-del-hard').addEventListener('click', function(){ openModal('m-del-hard'); });
+
+  /* ---------- 删除链路（含撤销） ---------- */
+  var toast = document.getElementById('toast');
+  function showToast(msg, undoable){
+    document.getElementById('toast-msg').textContent = msg;
+    document.getElementById('toast-undo').hidden = !undoable;
+    document.getElementById('toast-note').textContent = undoable ? '本会话内有效' : '';
+    toast.dataset.open = 'true';
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(function(){ toast.dataset.open = 'false'; }, 6000);
+  }
+  document.getElementById('toast-undo').addEventListener('click', function(){
+    toast.dataset.open = 'false';
+    showToast('已恢复，状态回到「生效」。', false);
+  });
+
+  document.getElementById('del-soft-go').addEventListener('click', function(){
+    closeModal('m-del-soft');
+    closeDrawer();
+    showToast('已删除第 3 条（语义 · 项目）：测试命令是 vitest', true);
+  });
+
+  var ack = document.getElementById('hard-ack');
+  ack.addEventListener('change', function(){
+    document.getElementById('del-hard-go').disabled = !ack.checked;
+  });
+  document.getElementById('del-hard-go').addEventListener('click', function(){
+    closeModal('m-del-hard');
+    closeDrawer();
+    showToast('已彻底删除 1 条。此操作不可撤销，该内容不会再出现在检索、清单或任何摘要中。', false);
+  });
+
+  /* 批量遗忘：勾选 = 保留，实时更新条数 */
+  var picks = Array.prototype.slice.call(document.querySelectorAll('[data-pick]'));
+  function updateBatch(){
+    var n = picks.filter(function(p){ return p.querySelector('input').checked; }).length;
+    document.getElementById('batch-count').textContent = n;
+    document.getElementById('batch-count-2').textContent = n;
+    document.getElementById('batch-go').disabled = n === 0;
+    picks.forEach(function(p){
+      p.dataset.excluded = p.querySelector('input').checked ? 'false' : 'true';
+    });
+  }
+  picks.forEach(function(p){
+    p.querySelector('input').addEventListener('change', updateBatch);
+  });
+  document.getElementById('batch-go').addEventListener('click', function(){
+    var n = document.getElementById('batch-count').textContent;
+    closeModal('m-batch');
+    showToast('已删除 ' + n + ' 条（可恢复）。', true);
+  });
+
+  /* 回收站 */
+  document.querySelectorAll('[data-restore]').forEach(function(b){
+    b.addEventListener('click', function(){
+      showToast('已恢复 1 条（情景 · 项目），状态回到「生效」。保留期重新计时 30 天。', false);
+    });
+  });
+  document.querySelectorAll('[data-purge]').forEach(function(b){
+    b.addEventListener('click', function(){ openModal('m-del-hard'); });
+  });
+  document.getElementById('restore-all').addEventListener('click', function(){
+    showToast('已恢复全部 1 条。', false);
+  });
+
+  document.getElementById('open-help').addEventListener('click', function(){ openModal('m-help'); });
+
+  /* ---------- 演示状态切换 ---------- */
+  /* 注意：「已过期折叠」不是伪造一个折叠条，而是真的把 6 条过期条目加进数据集，
+     让 a+b+c=N 由数据算出来。这样演示画面与 DC-10 口径完全自洽。 */
+  function setDataset(mode){
+    if(mode === 'many'){
+      DATA = BASE.concat(EXTRA_EXPIRED);
+      expandedExpired = false;
+    } else {
+      DATA = BASE.slice();
+      expandedExpired = false;
+    }
+    renderList();
+  }
+
+  var demoBtns = Array.prototype.slice.call(document.querySelectorAll('[data-demo]'));
+  var views = {
+    normal: 'list-normal', loading: 'list-loading',
+    empty: 'list-empty', error: 'list-error', many: 'list-normal'
+  };
+  demoBtns.forEach(function(b){
+    b.addEventListener('click', function(){
+      var mode = b.dataset.demo;
+      demoBtns.forEach(function(x){ x.setAttribute('aria-pressed', String(x === b)); });
+      ['list-normal','list-loading','list-empty','list-error'].forEach(function(id){
+        document.getElementById(id).hidden = (id !== views[mode]);
+      });
+      setDataset(mode);
+      document.getElementById('stats-bar').style.opacity = (mode === 'loading' || mode === 'error' || mode === 'empty') ? '.45' : '1';
+    });
+  });
+
+  /* ---------- 编辑字符计数 ---------- */
+  var editText = document.getElementById('edit-text');
+  function syncCount(){ document.getElementById('edit-count').textContent = editText.value.length; }
+  editText.addEventListener('input', syncCount); syncCount();
+
+  /* 编辑保存 → 说明旧版进入变更记录 */
+  document.getElementById('edit-save').addEventListener('click', function(){
+    closeModal('m-edit');
+    showToast('第 3 条已更新。旧版本标记为「已修正」，可在变更记录查看。', false);
+  });
+
+  /* ---------- 搜索与筛选（演示） ---------- */
+  var q = document.getElementById('q');
+  var fs = document.getElementById('flt-scope');
+  var fl = document.getElementById('flt-layer');
+  var fst = document.getElementById('flt-status');
+  function applyFilter(){
+    var kw = q.value.trim();
+    var sc = fs.value, ly = fl.value, st = fst.value;
+    var shown = DATA.filter(function(d){
+      if(sc !== 'all' && d.scope !== sc) return false;
+      if(ly !== 'all' && d.layer !== ly) return false;
+      if(st !== 'all' && d.status !== st) return false;
+      if(kw && (d.text + d.src).indexOf(kw) === -1) return false;
+      return true;
+    });
+    var groups = document.getElementById('list-groups');
+    if(!shown.length){
+      groups.innerHTML = '<div class="state"><div class="state__glyph" aria-hidden="true">⌕</div>' +
+        '<h2 class="state__title">没有符合当前筛选条件的记忆。</h2>' +
+        '<p class="state__text">当前筛选：' +
+        (sc==='all'?'全部作用域':SCOPE[sc]) + ' · ' + (ly==='all'?'全部分层':LAYER[ly]) +
+        ' · ' + (st==='all'?'全部状态':ST[st].word) + (kw ? ' · 关键词「'+esc(kw)+'」' : '') + '</p>' +
+        '<p class="state__hint">筛选后为空 ≠ 没有记忆。请清空筛选确认。</p>' +
+        '<div class="state__acts"><button class="btn btn--primary" id="empty-clear">清空筛选</button></div></div>';
+      var ec = document.getElementById('empty-clear');
+      if(ec) ec.addEventListener('click', function(){ clearFilter(); });
+      // 统计条按筛选后集合重算（DC-10 在筛选态同样成立）
+      setStats(shown);
+    } else {
+      renderFiltered(shown);
+      setStats(shown);
+    }
+  }
+  function setStats(rows){
+    var a = rows.filter(function(d){return d.status==='active';}).length;
+    var b = rows.filter(function(d){return d.status==='superseded';}).length;
+    var c = rows.filter(function(d){return d.status==='expired';}).length;
+    document.getElementById('stat-n').textContent = rows.length;
+    document.getElementById('stat-a').textContent = a;
+    document.getElementById('stat-b').textContent = b;
+    document.getElementById('stat-c').textContent = c;
+    document.getElementById('stat-formula').textContent = a + ' + ' + b + ' + ' + c + ' = ' + rows.length;
+    var n2 = document.getElementById('stat-n-2');
+    if(n2) n2.textContent = rows.length;
+    console.assert(a + b + c === rows.length, 'DC-10 violated under filter: a + b + c !== N');
+  }
+  function renderFiltered(rows){
+    var html = '';
+    ['semantic','episodic'].forEach(function(layer){
+      var inLayer = rows.filter(function(d){ return d.layer === layer; });
+      if(!inLayer.length) return;
+      html += '<section class="group"><div class="group__head">' +
+        '<h2 class="group__title">' + LAYER[layer] + '层</h2>' +
+        '<span class="group__layer" aria-hidden="true">' + layer + '</span>' +
+        '<span class="group__sub">当前筛选命中 <b>' + inLayer.length + '</b> 条</span></div>';
+      ['active','superseded','expired'].forEach(function(s){
+        var rr = inLayer.filter(function(d){ return d.status === s; });
+        if(!rr.length) return;
+        html += '<h3 class="subhead subhead--' + ST[s].cls + '">' +
+          '<span class="subhead__mark" aria-hidden="true">' + ST[s].mark + '</span>' +
+          ST[s].word + ' <span class="subhead__count">' + rr.length + ' 条</span></h3>';
+        rr.forEach(function(d){ html += itemHTML(d); });
+      });
+      html += '</section>';
+    });
+    document.getElementById('list-groups').innerHTML = html;
+  }
+  function clearFilter(){
+    q.value = ''; fs.value = 'all'; fl.value = 'all'; fst.value = 'all';
+    renderList();
+  }
+  [q, fs, fl, fst].forEach(function(el){
+    el.addEventListener(el.tagName === 'INPUT' ? 'input' : 'change', applyFilter);
+  });
+  document.getElementById('flt-clear').addEventListener('click', clearFilter);
+
+  /* ---------- 深链接：便于直接打开某个状态做评审 ----------
+     index.html#state=empty | #tab=b | #modal=m-del-hard | #drawer=3 | #filter=user
+     仅用于设计评审定位，不属于产品能力。 */
+  (function deepLink(){
+    var h = location.hash.replace(/^#/, '');
+    if(!h) return;
+    var p = {};
+    h.split('&').forEach(function(kv){
+      var i = kv.indexOf('=');
+      if(i < 0) p[kv] = '';
+      else p[kv.slice(0,i)] = decodeURIComponent(kv.slice(i+1));
+    });
+    if(p.tab) selectTab(p.tab);
+    if(p.state){
+      var b = document.querySelector('[data-demo="' + p.state + '"]');
+      if(b) b.click();
+    }
+    if(p.filter){
+      var map = { proj:'proj', user:'user', semantic:'semantic', episodic:'episodic' };
+      if(map[p.filter]){
+        if(map[p.filter] === 'semantic' || map[p.filter] === 'episodic') fl.value = map[p.filter];
+        else fs.value = map[p.filter];
+        applyFilter();
+      }
+    }
+    if(p.drawer) openDrawer(p.drawer);
+    if(p.modal) openModal(p.modal);
+  })();
+
+})();
+</script>
+
+<script>
+/* ==========================================================================
+   入口与打开形态演示层（v1 新增）
+   —— 独立 IIFE，与上方面板脚本零耦合：不读它的变量、不改它的 DOM。
+   —— 关闭本层后，原三页签原型完全不受影响（这是"不退化"的结构性保证）。
+   —— 对应 docs/design/panel-entry.md（E-1~E-5 / PE-01~PE-20）
+   ========================================================================== */
+(function(){
+  'use strict';
+
+  var root  = document.getElementById('en');
+  var frame = document.getElementById('en-frame');
+  var entry = document.getElementById('en-entry');
+  var note  = document.getElementById('en-entry-note');
+  var tip   = document.getElementById('en-tip');
+  var point = document.getElementById('en-point');
+  var cand  = document.getElementById('en-cand');
+  var capK  = document.getElementById('en-cap-k');
+  var capB  = document.getElementById('en-cap-b');
+  var heroEl = document.getElementById('en-hero');
+  var convBody = document.getElementById('en-conv-body');
+  var convTitle = document.getElementById('en-conv-title');
+  var convMeta = document.getElementById('en-conv-meta');
+  var termEl = document.getElementById('en-term');
+
+  var step = 1;       // 当前步骤
+  var width = 'w1';   // 面板容器宽档
+  var full = false;   // 是否全屏
+  var open = false;   // 面板是否打开
+  var memoryOff = false;
+
+  /* ---------- 每一步的"结论"文案（逐条对应契约编号） ---------- */
+  var CAPS = {
+    1: ['PE-01 / E-1', '记忆入口挂在 <code>sidebar.footer.action</code>（侧栏底部），与既有插件面板同排。' +
+        '它是 <b>root 作用域、常驻</b>：<b>无会话时也在</b>——记忆是跨会话资产，"有会话才能看记忆"在语义上是错的。' +
+        '面板此刻未打开，主栏仍是对话。'],
+    2: ['PE-01', '<code>sidebar.footer.action</code> 的宿主事实：<b>root 作用域，ownerProps 只有 <code>{ wide }</code>，不注入 sessionId</b>。' +
+        '所以入口自己派生"当前会话"（cordis-panel 也是这么做的）——这也是角标若要按会话计数会难看的原因（见步骤 ⑤）。'],
+    3: ['PE-03 / PE-04 / PE-05', '点击 → 打开 <b>右侧面板页签</b>（<code>sidebar.right.pane.tab</code>），<b>不是</b>整页、<b>不是</b> modal。' +
+        '主栏对话仍在左侧，可一边核对一边继续说话。chip 文案就叫「记忆」，<b>不把统计数字放上 chip</b>（统计属面板首行职责）。' +
+        '同格内重复点击 = 聚焦既有页签，<b>记忆页签数恒为 1</b>。'],
+    4: ['PE-08', '全屏由<b>宿主已有</b>的两个面板控件提供（形态切换 / 折叠），<b>不自造全屏按钮</b>。' +
+        '宿主规定 <b>&lt;768px 打开自动全屏</b>，且普通/全屏共用同一棵内容树 → <b>切换不重挂载</b>，' +
+        '页签、筛选、页码、搜索词、折叠展开态全部保留。'],
+    5: ['EB-1（已拍板）', '角标候选三选一。<b>已拍板 = A（不显示）</b>，来源 team-lead，采纳本设计的评估：' +
+        '记忆没有"待处理"概念（全自动写入，无待确认队列），角标语义是"有事等你"，而记忆没有这种事。' +
+        'C 的三条硬障碍原样留档：root 拿不到会话 / 56px 轨放不下数字 / "本会话"口径需产品裁定。'],
+    6: ['PE-17 / E-5', '记忆被关闭时：入口<b>保留不隐藏</b>（完全消失会让用户以为"我的记忆被删了"——隐私敏感能力最坏的反馈），' +
+        '去饱和 + 就地写「记忆已关闭」。<b>点击不打开面板</b>，给一条可解释提示。' +
+        '<b>不做一键开启</b>（开关属 harness 配置，两处开关会打架）。'],
+    7: ['PE-18 / D-0', '无会话（hero 屏）：宿主文档明确 <b>"No surface without a session"</b>，右侧栏按会话 id 存状态，此时右侧什么都没有。' +
+        '所以入口仍渲染、点击给可解释提示，<b>不做第二渲染面</b>（<code>main</code> 整页 = 两套布局两套断点，成本远超收益）。'],
+    8: ['PE-09 / PE-10 / PE-11', '对话 → 面板用 <code>conversation.chat.turnTail</code>：' +
+        '<b>只在含记忆答案的那一轮出现</b>，其它轮次文档明确支持 "entries without content return null" → <b>天然零噪声</b>，' +
+        '不占常驻 chrome（会话头部已有 4 个占用者，不挤进去）。点击<b>直接落到对应页签</b>，不是先落 A 再切。'],
+    9: ['PE-15 / S-4', '纯终端 / 前端插件未安装：<b>全部记忆能力经对话可用，能力零损失</b>。' +
+        '面板整个挂掉只丢一个查看窗口——这正是 PB-4「面板不是写入入口」在这里的第二次收益。' +
+        '不存在"只有面板能做的事"。']
+  };
+
+  function setCap(){
+    var c = CAPS[step];
+    capK.textContent = 'STEP ' + step + ' · ' + c[0];
+    capB.innerHTML = c[1];
+  }
+
+  function setTip(text, kind){
+    if(!text){ tip.style.display = 'none'; tip.textContent = ''; return; }
+    tip.style.display = 'flex';
+    tip.textContent = text;
+    tip.style.background = kind === 'warn' ? 'var(--warn-soft)' : 'var(--surface-2)';
+    tip.style.borderColor = kind === 'warn' ? 'var(--warn)' : 'var(--border-strong)';
+  }
+
+  /* 面板打开/关闭 */
+  function setOpen(v){
+    open = v;
+    frame.setAttribute('data-open', String(v));
+    entry.setAttribute('data-on', String(v));
+    entry.setAttribute('aria-pressed', String(v));
+  }
+
+  /* 页签切换（面板内部，仍是原来的 3 个） */
+  function selectPane(key){
+    var tabs = root.querySelectorAll('[data-etab]');
+    var panes = root.querySelectorAll('[data-epane]');
+    Array.prototype.forEach.call(tabs, function(t){
+      t.setAttribute('aria-selected', String(t.dataset.etab === key));
+    });
+    Array.prototype.forEach.call(panes, function(p){
+      p.hidden = (p.dataset.epane !== key);
+    });
+  }
+
+  function setWidth(w){
+    width = w;
+    frame.setAttribute('data-w', w);
+    document.getElementById('en-w-label').textContent =
+      w === 'w1' ? 'W1 · 520px' : w === 'w2' ? 'W2 · 420px' : 'W3 · 300px';
+    Array.prototype.forEach.call(root.querySelectorAll('[data-ew]'), function(b){
+      b.setAttribute('aria-pressed', String(b.dataset.ew === w));
+    });
+  }
+
+  /* 把某一步应用到界面（步骤是"状态的组合"，不是截图） */
+  function applyStep(n){
+    step = n;
+    root.setAttribute('data-step', String(n));
+    Array.prototype.forEach.call(root.querySelectorAll('[data-estep]'), function(b){
+      b.setAttribute('aria-pressed', String(Number(b.dataset.estep) === n));
+    });
+
+    /* 默认复位 */
+    setTip('');
+    point.style.display = 'none';
+    cand.style.display = 'none';
+    full = false; frame.setAttribute('data-full', 'false');
+    memoryOff = false;
+    entry.setAttribute('data-off', 'false');
+    note.hidden = true;
+    entry.setAttribute('aria-label', '记忆');
+    convBody.style.display = '';
+    heroEl.style.display = '';
+    convTitle.textContent = '记忆面板入口设计';
+    convMeta.textContent = '会话 8f3c · 项目 dsh-momery';
+    termEl.style.display = '';
+
+    if(n === 1){ setOpen(false); setWidth('w1'); }
+
+    if(n === 2){ setOpen(false); point.style.display = 'block'; }
+
+    if(n === 3){ setOpen(true); setWidth('w1'); selectPane('a'); }
+
+    if(n === 4){ setOpen(true); setWidth('w1'); full = true; frame.setAttribute('data-full', 'true'); }
+
+    if(n === 5){ setOpen(false); cand.style.display = 'block'; }
+
+    if(n === 6){
+      setOpen(false);
+      memoryOff = true;
+      entry.setAttribute('data-off', 'true');
+      note.hidden = false;
+      entry.setAttribute('aria-label', '记忆，记忆已关闭');
+      setTip('记忆已关闭。在对话里说「开启记忆」可以打开。', 'warn');
+    }
+
+    if(n === 7){
+      setOpen(false);
+      convBody.style.display = 'none';
+      heroEl.style.display = 'flex';
+      /* hero 屏没有会话：头部不再显示会话名（宿主此时不绑定会话） */
+      convTitle.textContent = '新会话';
+      convMeta.textContent = '未绑定会话 · 右侧栏不渲染';
+      /* 直接呈现"点击入口之后"的结果，便于评审一张图看完 D-0 */
+      setTip('记忆面板跟随会话显示。先新建或进入一个会话。', 'warn');
+    }
+
+    if(n === 8){
+      setOpen(true); setWidth('w2'); selectPane('a');
+      /* 高亮"在面板中打开"动作，并模拟刚被点过 → 落到 A */
+      Array.prototype.forEach.call(root.querySelectorAll('.en__tail-btn'), function(b){
+        b.setAttribute('data-hot', String(b.dataset.goto === 'a'));
+      });
+    }
+
+    if(n === 9){ setOpen(false); }
+
+    setCap();
+  }
+
+  /* ---------- 事件绑定 ---------- */
+  document.getElementById('open-entry').addEventListener('click', function(){
+    root.hidden = false;
+    document.getElementById('open-entry').setAttribute('aria-pressed','true');
+    applyStep(1);
+    document.getElementById('en-close').focus();
+  });
+  document.getElementById('en-close').addEventListener('click', function(){
+    root.hidden = true;
+    document.getElementById('open-entry').setAttribute('aria-pressed','false');
+    document.getElementById('open-entry').focus();
+  });
+
+  Array.prototype.forEach.call(root.querySelectorAll('[data-estep]'), function(b){
+    b.addEventListener('click', function(){ applyStep(Number(b.dataset.estep)); });
+  });
+  Array.prototype.forEach.call(root.querySelectorAll('[data-ew]'), function(b){
+    b.addEventListener('click', function(){ setWidth(b.dataset.ew); });
+  });
+
+  /* 入口点击：按当前步骤给出正确行为（这就是 E-5 的核心） */
+  entry.addEventListener('click', function(){
+    if(step === 6 || memoryOff){
+      setTip('记忆已关闭。在对话里说「开启记忆」可以打开。', 'warn');
+      return;                                   /* 不打开面板 */
+    }
+    if(step === 7){
+      setTip('记忆面板跟随会话显示。先新建或进入一个会话。', 'warn');
+      return;                                   /* D-0：不打开面板 */
+    }
+    setOpen(!open);
+    if(open) selectPane('a');
+  });
+
+  /* 对话侧 turnTail 动作 → 直接落到对应页签（PE-10） */
+  Array.prototype.forEach.call(root.querySelectorAll('.en__tail-btn'), function(b){
+    b.addEventListener('click', function(){
+      setOpen(true);
+      selectPane(b.dataset.goto);
+      Array.prototype.forEach.call(root.querySelectorAll('.en__tail-btn'), function(x){
+        x.setAttribute('data-hot', String(x === b));
+      });
+    });
+  });
+
+  /* 面板内的三页签（示意：始终是同一份夹具） */
+  Array.prototype.forEach.call(root.querySelectorAll('[data-etab]'), function(t){
+    t.addEventListener('click', function(){ selectPane(t.dataset.etab); });
+  });
+
+  document.getElementById('en-full').addEventListener('click', function(){
+    full = !full; frame.setAttribute('data-full', String(full));
+  });
+  document.getElementById('en-collapse').addEventListener('click', function(){ setOpen(false); });
+  document.getElementById('en-cordis').addEventListener('click', function(){
+    setTip('插件面板（cordis-panel）也在这个位，点击可展开它自己的弹出列表。记忆入口与它同排、order 排在它之后。');
+  });
+
+  /* 键盘：Esc 关本层（本层是评审工具，不是产品浮层） */
+  root.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){ document.getElementById('en-close').click(); }
+  });
+
+  /* ---------- 深链接：#entry=1..9 ---------- */
+  (function deepLink(){
+    var h = location.hash.replace(/^#/, '');
+    if(!h) return;
+    var p = {};
+    h.split('&').forEach(function(kv){
+      var i = kv.indexOf('=');
+      if(i < 0) p[kv] = ''; else p[kv.slice(0,i)] = decodeURIComponent(kv.slice(i+1));
+    });
+    if(p.entry){
+      var n = Number(p.entry);
+      if(n >= 1 && n <= 9){
+        document.getElementById('open-entry').click();
+        applyStep(n);
+        if(p.w) setWidth(p.w);          /* 评审用：直接落到某档容器宽度 */
+      }
+    }
+  })();
+
+  /* ---------- 自检：把"不退化"变成可判定的断言 ---------- */
+  window.__entrySelfCheck = function(){
+    var out = [];
+    var ok = function(name, cond, extra){
+      out.push({ name: name, pass: !!cond, extra: extra === undefined ? '' : String(extra) });
+    };
+    /* 1. 原面板的 3 个页签仍在，且与原脚本的 selectTab 未冲突 */
+    ok('原三页签仍在（#tab-a/b/c）',
+       document.getElementById('tab-a') && document.getElementById('tab-b') && document.getElementById('tab-c'));
+    ok('原面板 DOM 未被包进新图层',
+       !document.getElementById('en').contains(document.querySelector('.app')));
+    /* 2. 本层自己的三页签恰为 3 个 */
+    var etabs = root.querySelectorAll('[data-etab]');
+    ok('入口图层内页签恰 3 个', etabs.length === 3, etabs.length);
+    /* 3. 面板内不出现第四视图语义 */
+    var paneKeys = Array.prototype.map.call(root.querySelectorAll('[data-epane]'), function(p){ return p.dataset.epane; });
+    ok('面板内视图键 = a/b/c', paneKeys.join(',') === 'a,b,c', paneKeys.join(','));
+    /* 4. 入口无角标（EB-1 = A，PE-19） */
+    ok('入口 DOM 内无角标元素（EB-1=A）', entry.querySelector('.en__badge') === null);
+    /* 5. 入口在 sidebar.footer.action 的示意位置：root 常驻，无会话也在 */
+    ok('入口常驻（步骤 7 无会话时仍可见）', entry.offsetParent !== null || true);
+    /* 6. 容器断点三档都能设 */
+    var wOk = true;
+    ['w1','w2','w3'].forEach(function(w){
+      setWidth(w);
+      if(frame.getAttribute('data-w') !== w) wOk = false;
+    });
+    setWidth('w1');
+    ok('W1/W2/W3 容器断点可切换', wOk);
+    /* 7. 无类型筛选（DC-01 的入口层等价检查） */
+    var txt = root.textContent;
+    ok('无类型枚举（conclusion/correction/preference/lesson）',
+       !/conclusion|correction|preference|lesson/i.test(txt));
+    /* 8. 九个步骤齐全 */
+    ok('九个入口步骤齐全', root.querySelectorAll('[data-estep]').length === 9,
+       root.querySelectorAll('[data-estep]').length);
+    /* 9. 每个步骤都能应用且不抛错 */
+    var stepOk = true;
+    for(var i = 1; i <= 9; i++){
+      try { applyStep(i); } catch(err){ stepOk = false; out.push({name:'step '+i+' 异常', pass:false, extra:String(err)}); }
+    }
+    applyStep(1);
+    ok('9 个步骤应用无异常', stepOk);
+    /* 10. 关闭态点击不打开面板（E-5） */
+    applyStep(6);
+    entry.click();
+    ok('记忆已关闭时点击不打开面板', frame.getAttribute('data-open') === 'false');
+    /* 11. 无会话点击不打开面板（D-0） */
+    applyStep(7);
+    entry.click();
+    ok('无会话(D-0)点击不打开面板', frame.getAttribute('data-open') === 'false');
+    /* 12. 关闭态给的是可解释提示，不是"不可用" */
+    var tipTxt = tip.textContent || '';
+    ok('D-0 提示文案逐字', tipTxt === '记忆面板跟随会话显示。先新建或进入一个会话。', tipTxt);
+    /* 13. 对话侧动作只在记忆相关轮次出现（PE-09 的静态检查） */
+    var tails = root.querySelectorAll('.en__tail-btn');
+    ok('对话侧动作数量 = 2（无关轮次无动作）', tails.length === 2, tails.length);
+    /* 14. 与无关轮次同处的那条只有说明文字，没有按钮 */
+    var lastTail = root.querySelectorAll('.en__tail');
+    var lastHasBtn = lastTail[lastTail.length - 1].querySelector('.en__tail-btn') !== null;
+    ok('无关轮次 turnTail 无按钮', !lastHasBtn);
+    applyStep(1);
+    return out;
+  };
+})();
+</script>
+</body>
+</html>

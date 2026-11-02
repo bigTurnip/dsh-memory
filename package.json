@@ -1,0 +1,56 @@
+{
+  "name": "@clinexin/dsh-memory",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "DSH harness 的 Agent 记忆系统：对话通道 + 记忆管理面板（MVP）",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "main": "./lib/host/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/host/index.js"
+    },
+    "./client": {
+      "default": "./lib/client.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-sidebar"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "test": "node src/test/run-all.mjs",
+    "test:smoke": "node src/test/smoke.mjs",
+    "test:panel": "node src/test/panel-render.mjs",
+    "test:recall": "node src/test/recall.mjs",
+    "test:perf": "node src/test/perf.mjs",
+    "test:u4": "node src/test/u4-entry-metrics.mjs",
+    "verify": "node src/test/verify-all.mjs",
+    "typecheck:tests": "tsc -p tsconfig.tests.json --noEmit",
+    "verify:tests": "node tests/gate.mjs"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "4.0.5",
+    "@types/node": "^22.20.5",
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "esbuild": "0.25.12",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "typescript": "5.7.2"
+  }
+}

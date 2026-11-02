@@ -1,0 +1,44 @@
+U-4 基线（仅宿主 occupant，无记忆入口）
+wide280: plugin=260×42 settings=260×42 fa=258/256 footOverflow=true root=280/280 rootOverflow=false pluginRightOverflow=-10px
+rail56: plugin=36×36 settings=36×36 fa=36/36 footOverflow=false root=56/56 rootOverflow=false pluginRightOverflow=-10px
+
+{
+  "wide280": {
+    "plugin": {
+      "w": 260,
+      "h": 42,
+      "right": 270
+    },
+    "settings": {
+      "w": 260,
+      "h": 42,
+      "right": 270
+    },
+    "faScrollW": 258,
+    "faClientW": 256,
+    "footOverflow": true,
+    "rootScrollW": 280,
+    "rootClientW": 280,
+    "rootOverflow": false,
+    "pluginRightOverflow": -10
+  },
+  "rail56": {
+    "plugin": {
+      "w": 36,
+      "h": 36,
+      "right": 46
+    },
+    "settings": {
+      "w": 36,
+      "h": 36,
+      "right": 46
+    },
+    "faScrollW": 36,
+    "faClientW": 36,
+    "footOverflow": false,
+    "rootScrollW": 56,
+    "rootClientW": 56,
+    "rootOverflow": false,
+    "pluginRightOverflow": -10
+  }
+}

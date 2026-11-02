@@ -1,0 +1,7 @@
+node_modules/
+lib/
+dist/
+*.log
+.DS_Store
+*.tsbuildinfo
+.harness-integration-notes.local.md

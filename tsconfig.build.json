@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "./lib",
+    "rootDir": "./src",
+    "declaration": true,
+    "declarationMap": false,
+    "sourceMap": false,
+    "allowImportingTsExtensions": false,
+    "rewriteRelativeImportExtensions": true
+  },
+  "include": [
+    "src/shared/**/*.ts",
+    "src/host/**/*.ts"
+  ],
+  "exclude": [
+    "src/test/**/*",
+    "src/client/**/*"
+  ]
+}

@@ -1,0 +1,489 @@
+U-4 实测（历史对照：D-14 起入口改由 sidebar.panellist 宿主行渲染）：入口在真实宿主几何下的像素（2026-11-01T16:18:40.600Z）
+========================================================================================================
+判定形态：v3_stacked（D-9 Q1 纵向叠放）；其余形态为对照，不计入退出码
+FAIL  [对照] v1_same_row/wide264.overlap 与插件入口 / Settings 不重叠（设计 §8.3）                → plugin=true settings=false
+FAIL  [对照] v1_same_row/wide264.clip    入口不被侧栏列裁切（overflow:hidden 不吞掉内容）             → 右溢 228 / 左溢 -240
+PASS  [对照] v1_same_row/wide264.hit44   命中区 ≥44×44（设计 §8.1/§8.4 触控要求）                → 240×44
+PASS  [对照] v1_same_row/wide264.icon    图标 18×18                                     → （本脚本固定 18px，不随档位变）
+PASS  [对照] v1_same_row/wide264.label   宽态显示「记忆」文字                                   → labelVisible=true
+FAIL  [对照] v1_same_row/wide280.overlap 与插件入口 / Settings 不重叠（设计 §8.3）                → plugin=true settings=false
+FAIL  [对照] v1_same_row/wide280.clip    入口不被侧栏列裁切（overflow:hidden 不吞掉内容）             → 右溢 244 / 左溢 -256
+PASS  [对照] v1_same_row/wide280.hit44   命中区 ≥44×44（设计 §8.1/§8.4 触控要求）                → 256×44
+PASS  [对照] v1_same_row/wide280.icon    图标 18×18                                     → （本脚本固定 18px，不随档位变）
+PASS  [对照] v1_same_row/wide280.label   宽态显示「记忆」文字                                   → labelVisible=true
+FAIL  [对照] v1_same_row/wide420.overlap 与插件入口 / Settings 不重叠（设计 §8.3）                → plugin=true settings=false
+FAIL  [对照] v1_same_row/wide420.clip    入口不被侧栏列裁切（overflow:hidden 不吞掉内容）             → 右溢 384 / 左溢 -396
+PASS  [对照] v1_same_row/wide420.hit44   命中区 ≥44×44（设计 §8.1/§8.4 触控要求）                → 396×44
+PASS  [对照] v1_same_row/wide420.icon    图标 18×18                                     → （本脚本固定 18px，不随档位变）
+PASS  [对照] v1_same_row/wide420.label   宽态显示「记忆」文字                                   → labelVisible=true
+PASS  [对照] v1_same_row/rail56.overlap  与插件入口 / Settings 不重叠（设计 §8.3）                → plugin=false settings=false
+FAIL  [对照] v1_same_row/rail56.clip     入口不被侧栏列裁切（overflow:hidden 不吞掉内容）             → 右溢 8 / 左溢 -36
+PASS  [对照] v1_same_row/rail56.hit44    折叠轨命中区 ≥36×36（D-9 Q2：44×44 仅宽态适用，折叠沿用宿主 36×36） → 36×36
+PASS  [对照] v1_same_row/rail56.icon     图标 18×18                                     → （本脚本固定 18px，不随档位变）
+PASS  [对照] v1_same_row/rail56.label    折叠轨不显示文字/数字                                  → labelVisible=false
+FAIL  [对照] v2_same_row_split/wide264.overlap 与插件入口 / Settings 不重叠（设计 §8.3）                → plugin=true settings=false
+FAIL  [对照] v2_same_row_split/wide264.clip 入口不被侧栏列裁切（overflow:hidden 不吞掉内容）             → 右溢 -12 / 左溢 -120
+PASS  [对照] v2_same_row_split/wide264.hit44 命中区 ≥44×44（设计 §8.1/§8.4 触控要求）                → 120×44
+PASS  [对照] v2_same_row_split/wide264.icon 图标 18×18                                     → （本脚本固定 18px，不随档位变）
+PASS  [对照] v2_same_row_split/wide264.label 宽态显示「记忆」文字                                   → labelVisible=true
+FAIL  [对照] v2_same_row_split/wide280.overlap 与插件入口 / Settings 不重叠（设计 §8.3）                → plugin=true settings=false
+FAIL  [对照] v2_same_row_split/wide280.clip 入口不被侧栏列裁切（overflow:hidden 不吞掉内容）             → 右溢 -12 / 左溢 -128
+PASS  [对照] v2_same_row_split/wide280.hit44 命中区 ≥44×44（设计 §8.1/§8.4 触控要求）                → 128×44
+PASS  [对照] v2_same_row_split/wide280.icon 图标 18×18                                     → （本脚本固定 18px，不随档位变）
+PASS  [对照] v2_same_row_split/wide280.label 宽态显示「记忆」文字                                   → labelVisible=true
+FAIL  [对照] v2_same_row_split/wide420.overlap 与插件入口 / Settings 不重叠（设计 §8.3）                → plugin=true settings=false
+FAIL  [对照] v2_same_row_split/wide420.clip 入口不被侧栏列裁切（overflow:hidden 不吞掉内容）             → 右溢 -12 / 左溢 -198
+PASS  [对照] v2_same_row_split/wide420.hit44 命中区 ≥44×44（设计 §8.1/§8.4 触控要求）                → 198×44
+PASS  [对照] v2_same_row_split/wide420.icon 图标 18×18                                     → （本脚本固定 18px，不随档位变）
+PASS  [对照] v2_same_row_split/wide420.label 宽态显示「记忆」文字                                   → labelVisible=true
+PASS  [对照] v2_same_row_split/rail56.overlap 与插件入口 / Settings 不重叠（设计 §8.3）                → plugin=false settings=false
+FAIL  [对照] v2_same_row_split/rail56.clip 入口不被侧栏列裁切（overflow:hidden 不吞掉内容）             → 右溢 8 / 左溢 -36
+PASS  [对照] v2_same_row_split/rail56.hit44 折叠轨命中区 ≥36×36（D-9 Q2：44×44 仅宽态适用，折叠沿用宿主 36×36） → 36×36
+PASS  [对照] v2_same_row_split/rail56.icon 图标 18×18                                     → （本脚本固定 18px，不随档位变）
+PASS  [对照] v2_same_row_split/rail56.label 折叠轨不显示文字/数字                                  → labelVisible=false
+PASS  v3_stacked/wide264.overlap  与插件入口 / Settings 不重叠（设计 §8.3）                → plugin=false settings=false
+PASS  v3_stacked/wide264.clip     入口不被侧栏列裁切（overflow:hidden 不吞掉内容）             → 右溢 -12 / 左溢 0
+PASS  v3_stacked/wide264.hit44    命中区 ≥44×44（设计 §8.1/§8.4 触控要求）                → 240×44
+PASS  v3_stacked/wide264.icon     图标 18×18                                     → （本脚本固定 18px，不随档位变）
+PASS  v3_stacked/wide264.label    宽态显示「记忆」文字                                   → labelVisible=true
+PASS  v3_stacked/wide280.overlap  与插件入口 / Settings 不重叠（设计 §8.3）                → plugin=false settings=false
+PASS  v3_stacked/wide280.clip     入口不被侧栏列裁切（overflow:hidden 不吞掉内容）             → 右溢 -12 / 左溢 0
+PASS  v3_stacked/wide280.hit44    命中区 ≥44×44（设计 §8.1/§8.4 触控要求）                → 256×44
+PASS  v3_stacked/wide280.icon     图标 18×18                                     → （本脚本固定 18px，不随档位变）
+PASS  v3_stacked/wide280.label    宽态显示「记忆」文字                                   → labelVisible=true
+PASS  v3_stacked/wide420.overlap  与插件入口 / Settings 不重叠（设计 §8.3）                → plugin=false settings=false
+PASS  v3_stacked/wide420.clip     入口不被侧栏列裁切（overflow:hidden 不吞掉内容）             → 右溢 -12 / 左溢 0
+PASS  v3_stacked/wide420.hit44    命中区 ≥44×44（设计 §8.1/§8.4 触控要求）                → 396×44
+PASS  v3_stacked/wide420.icon     图标 18×18                                     → （本脚本固定 18px，不随档位变）
+PASS  v3_stacked/wide420.label    宽态显示「记忆」文字                                   → labelVisible=true
+PASS  v3_stacked/rail56.overlap   与插件入口 / Settings 不重叠（设计 §8.3）                → plugin=false settings=false
+PASS  v3_stacked/rail56.clip      入口不被侧栏列裁切（overflow:hidden 不吞掉内容）             → 右溢 -10 / 左溢 0
+PASS  v3_stacked/rail56.hit44     折叠轨命中区 ≥36×36（D-9 Q2：44×44 仅宽态适用，折叠沿用宿主 36×36） → 36×36
+PASS  v3_stacked/rail56.icon      图标 18×18                                     → （本脚本固定 18px，不随档位变）
+PASS  v3_stacked/rail56.label     折叠轨不显示文字/数字                                  → labelVisible=false
+========================================================================================================
+46/60 通过（全部）  ｜  门禁项 20/20 通过
+U-4 判定：PASS（已采用形态 v3_stacked 失败 0 项）
+
+宿主常量（源码依据）：
+  computeColumns(): sidebar = clamp(pref, 264, 420)，layout store 默认 pref = 280
+  computeColumns(): collapsedWidth = (data-platform=darwin || data-windows-titlebar) ? 0 : 56
+  sidebar root: padding 6px 12px（宽态）/ 18px 10px 6px（折叠）
+  footerActions: width 100%, display flex；settings triggerRow: width calc(100% + 4px)
+
+D-9 裁定落点：
+  Q1 纵向叠放（V3）→ 门禁形态；V1/V2 同排为对照（实测右溢即否决依据）
+  Q2 命中区 44×44 仅宽态，折叠轨 36×36 → 本脚本按 rail/wide 分支断言
+  F-9 macOS 桌面折叠 collapsedWidth=0（整列隐藏，无折叠轨）→ rail56 只对 Web GUI / Windows 有意义
+
+原始测量：
+{
+  "v1_same_row/wide264": {
+    "mem": {
+      "w": 240,
+      "h": 44,
+      "x": 252,
+      "y": 540,
+      "right": 492,
+      "bottom": 584
+    },
+    "plugin": {
+      "w": 244,
+      "h": 42,
+      "x": 10,
+      "y": 540,
+      "right": 254,
+      "bottom": 582
+    },
+    "settings": {
+      "w": 244,
+      "h": 42,
+      "x": 10,
+      "y": 588,
+      "right": 254,
+      "bottom": 630
+    },
+    "overlapPlugin": true,
+    "overlapSettings": false,
+    "clipLeftInFoot": -240,
+    "clipRight": 228,
+    "faOverflow": true,
+    "rootOverflow": true,
+    "labelVisible": true,
+    "labelTruncated": false
+  },
+  "v1_same_row/wide280": {
+    "mem": {
+      "w": 256,
+      "h": 44,
+      "x": 268,
+      "y": 540,
+      "right": 524,
+      "bottom": 584
+    },
+    "plugin": {
+      "w": 260,
+      "h": 42,
+      "x": 10,
+      "y": 540,
+      "right": 270,
+      "bottom": 582
+    },
+    "settings": {
+      "w": 260,
+      "h": 42,
+      "x": 10,
+      "y": 588,
+      "right": 270,
+      "bottom": 630
+    },
+    "overlapPlugin": true,
+    "overlapSettings": false,
+    "clipLeftInFoot": -256,
+    "clipRight": 244,
+    "faOverflow": true,
+    "rootOverflow": true,
+    "labelVisible": true,
+    "labelTruncated": false
+  },
+  "v1_same_row/wide420": {
+    "mem": {
+      "w": 396,
+      "h": 44,
+      "x": 408,
+      "y": 540,
+      "right": 804,
+      "bottom": 584
+    },
+    "plugin": {
+      "w": 400,
+      "h": 42,
+      "x": 10,
+      "y": 540,
+      "right": 410,
+      "bottom": 582
+    },
+    "settings": {
+      "w": 400,
+      "h": 42,
+      "x": 10,
+      "y": 588,
+      "right": 410,
+      "bottom": 630
+    },
+    "overlapPlugin": true,
+    "overlapSettings": false,
+    "clipLeftInFoot": -396,
+    "clipRight": 384,
+    "faOverflow": true,
+    "rootOverflow": true,
+    "labelVisible": true,
+    "labelTruncated": false
+  },
+  "v1_same_row/rail56": {
+    "mem": {
+      "w": 36,
+      "h": 36,
+      "x": 28,
+      "y": 544,
+      "right": 64,
+      "bottom": 580
+    },
+    "plugin": {
+      "w": 36,
+      "h": 36,
+      "x": -8,
+      "y": 544,
+      "right": 28,
+      "bottom": 580
+    },
+    "settings": {
+      "w": 36,
+      "h": 36,
+      "x": 10,
+      "y": 588,
+      "right": 46,
+      "bottom": 624
+    },
+    "overlapPlugin": false,
+    "overlapSettings": false,
+    "clipLeftInFoot": -36,
+    "clipRight": 8,
+    "faOverflow": false,
+    "rootOverflow": true,
+    "labelVisible": false,
+    "labelTruncated": false
+  },
+  "v2_same_row_split/wide264": {
+    "mem": {
+      "w": 120,
+      "h": 44,
+      "x": 132,
+      "y": 540,
+      "right": 252,
+      "bottom": 584
+    },
+    "plugin": {
+      "w": 124,
+      "h": 42,
+      "x": 10,
+      "y": 541,
+      "right": 134,
+      "bottom": 583
+    },
+    "settings": {
+      "w": 244,
+      "h": 42,
+      "x": 10,
+      "y": 588,
+      "right": 254,
+      "bottom": 630
+    },
+    "overlapPlugin": true,
+    "overlapSettings": false,
+    "clipLeftInFoot": -120,
+    "clipRight": -12,
+    "faOverflow": false,
+    "rootOverflow": false,
+    "labelVisible": true,
+    "labelTruncated": false
+  },
+  "v2_same_row_split/wide280": {
+    "mem": {
+      "w": 128,
+      "h": 44,
+      "x": 140,
+      "y": 540,
+      "right": 268,
+      "bottom": 584
+    },
+    "plugin": {
+      "w": 132,
+      "h": 42,
+      "x": 10,
+      "y": 541,
+      "right": 142,
+      "bottom": 583
+    },
+    "settings": {
+      "w": 260,
+      "h": 42,
+      "x": 10,
+      "y": 588,
+      "right": 270,
+      "bottom": 630
+    },
+    "overlapPlugin": true,
+    "overlapSettings": false,
+    "clipLeftInFoot": -128,
+    "clipRight": -12,
+    "faOverflow": false,
+    "rootOverflow": false,
+    "labelVisible": true,
+    "labelTruncated": false
+  },
+  "v2_same_row_split/wide420": {
+    "mem": {
+      "w": 198,
+      "h": 44,
+      "x": 210,
+      "y": 540,
+      "right": 408,
+      "bottom": 584
+    },
+    "plugin": {
+      "w": 202,
+      "h": 42,
+      "x": 10,
+      "y": 541,
+      "right": 212,
+      "bottom": 583
+    },
+    "settings": {
+      "w": 400,
+      "h": 42,
+      "x": 10,
+      "y": 588,
+      "right": 410,
+      "bottom": 630
+    },
+    "overlapPlugin": true,
+    "overlapSettings": false,
+    "clipLeftInFoot": -198,
+    "clipRight": -12,
+    "faOverflow": false,
+    "rootOverflow": false,
+    "labelVisible": true,
+    "labelTruncated": false
+  },
+  "v2_same_row_split/rail56": {
+    "mem": {
+      "w": 36,
+      "h": 36,
+      "x": 28,
+      "y": 544,
+      "right": 64,
+      "bottom": 580
+    },
+    "plugin": {
+      "w": 36,
+      "h": 36,
+      "x": -8,
+      "y": 544,
+      "right": 28,
+      "bottom": 580
+    },
+    "settings": {
+      "w": 36,
+      "h": 36,
+      "x": 10,
+      "y": 588,
+      "right": 46,
+      "bottom": 624
+    },
+    "overlapPlugin": false,
+    "overlapSettings": false,
+    "clipLeftInFoot": -36,
+    "clipRight": 8,
+    "faOverflow": false,
+    "rootOverflow": true,
+    "labelVisible": false,
+    "labelTruncated": false
+  },
+  "v3_stacked/wide264": {
+    "mem": {
+      "w": 240,
+      "h": 44,
+      "x": 12,
+      "y": 488,
+      "right": 252,
+      "bottom": 532
+    },
+    "plugin": {
+      "w": 244,
+      "h": 42,
+      "x": 10,
+      "y": 542,
+      "right": 254,
+      "bottom": 584
+    },
+    "settings": {
+      "w": 244,
+      "h": 42,
+      "x": 10,
+      "y": 588,
+      "right": 254,
+      "bottom": 630
+    },
+    "overlapPlugin": false,
+    "overlapSettings": false,
+    "clipLeftInFoot": 0,
+    "clipRight": -12,
+    "faOverflow": true,
+    "rootOverflow": false,
+    "labelVisible": true,
+    "labelTruncated": false
+  },
+  "v3_stacked/wide280": {
+    "mem": {
+      "w": 256,
+      "h": 44,
+      "x": 12,
+      "y": 488,
+      "right": 268,
+      "bottom": 532
+    },
+    "plugin": {
+      "w": 260,
+      "h": 42,
+      "x": 10,
+      "y": 542,
+      "right": 270,
+      "bottom": 584
+    },
+    "settings": {
+      "w": 260,
+      "h": 42,
+      "x": 10,
+      "y": 588,
+      "right": 270,
+      "bottom": 630
+    },
+    "overlapPlugin": false,
+    "overlapSettings": false,
+    "clipLeftInFoot": 0,
+    "clipRight": -12,
+    "faOverflow": true,
+    "rootOverflow": false,
+    "labelVisible": true,
+    "labelTruncated": false
+  },
+  "v3_stacked/wide420": {
+    "mem": {
+      "w": 396,
+      "h": 44,
+      "x": 12,
+      "y": 488,
+      "right": 408,
+      "bottom": 532
+    },
+    "plugin": {
+      "w": 400,
+      "h": 42,
+      "x": 10,
+      "y": 542,
+      "right": 410,
+      "bottom": 584
+    },
+    "settings": {
+      "w": 400,
+      "h": 42,
+      "x": 10,
+      "y": 588,
+      "right": 410,
+      "bottom": 630
+    },
+    "overlapPlugin": false,
+    "overlapSettings": false,
+    "clipLeftInFoot": 0,
+    "clipRight": -12,
+    "faOverflow": true,
+    "rootOverflow": false,
+    "labelVisible": true,
+    "labelTruncated": false
+  },
+  "v3_stacked/rail56": {
+    "mem": {
+      "w": 36,
+      "h": 36,
+      "x": 10,
+      "y": 506,
+      "right": 46,
+      "bottom": 542
+    },
+    "plugin": {
+      "w": 36,
+      "h": 36,
+      "x": 10,
+      "y": 544,
+      "right": 46,
+      "bottom": 580
+    },
+    "settings": {
+      "w": 36,
+      "h": 36,
+      "x": 10,
+      "y": 588,
+      "right": 46,
+      "bottom": 624
+    },
+    "overlapPlugin": false,
+    "overlapSettings": false,
+    "clipLeftInFoot": 0,
+    "clipRight": -10,
+    "faOverflow": false,
+    "rootOverflow": false,
+    "labelVisible": false,
+    "labelTruncated": false
+  }
+}
